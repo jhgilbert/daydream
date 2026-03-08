@@ -1,5 +1,7 @@
 import { auth, signIn, signOut } from "@/auth";
 import { TestNotificationButton } from "@/components/TestNotificationButton";
+import { TodoList } from "@/components/TodoList";
+import { CommandBar } from "@/components/CommandBar";
 import styles from "./page.module.css";
 
 export default async function Home() {
@@ -9,6 +11,7 @@ export default async function Home() {
     return (
       <>
         <main className={styles.main}>
+          <TodoList />
           <TestNotificationButton className={styles.button} />
         </main>
         <footer className={styles.footer}>
@@ -26,6 +29,7 @@ export default async function Home() {
             </button>
           </form>
         </footer>
+        <CommandBar />
       </>
     );
   }

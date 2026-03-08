@@ -6,6 +6,7 @@
   gap: var(--space-4);
   min-height: 100vh;
   padding: var(--space-8);
+  padding-bottom: calc(var(--space-16) + var(--space-8));
 }
 
 .title {
@@ -17,7 +18,7 @@
 
 .footer {
   position: fixed;
-  bottom: 0;
+  bottom: 3.25rem;
   left: 0;
   right: 0;
   display: flex;

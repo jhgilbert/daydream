@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { NotificationProvider } from "@/components/NotificationProvider";
+import { SlashCommandProvider } from "@/components/SlashCommandProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <NotificationProvider>{children}</NotificationProvider>
+        <NotificationProvider>
+          <SlashCommandProvider>{children}</SlashCommandProvider>
+        </NotificationProvider>
       </body>
     </html>
   );
