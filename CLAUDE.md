@@ -31,7 +31,9 @@ src/
     api/auth/[...nextauth]/route.ts — Auth API route
     layout.tsx             — Root layout
     page.tsx               — Home page (sign-in / signed-in view)
-    globals.css            — Global styles
+    theme.css              — Design tokens (CSS custom properties)
+    globals.css            — Global resets & base styles (imports theme.css)
+    page.module.css        — Home page component styles
 ```
 
 ## Database
@@ -39,6 +41,13 @@ src/
 - Uses **Prisma 7**. The datasource URL is NOT in `schema.prisma` — it's in `prisma.config.ts` (for CLI) and `src/lib/prisma.ts` (for runtime via `@prisma/adapter-pg`).
 - After changing the schema, run `yarn db:migrate` to create a migration.
 - The Prisma client is re-generated on `yarn build` and `yarn install` (postinstall hook).
+
+## Styling
+
+- **CSS modules**: Every component gets its own `*.module.css` file — never use inline styles or global class selectors for component styling.
+- **Design tokens**: All colors, fonts, spacing, radii, shadows, and transitions come from the CSS custom properties in `src/app/theme.css`. Never hard-code raw color/spacing values in component styles; always reference a `var(--…)` token.
+- **Global styles**: Only resets and base element styles belong in `src/app/globals.css`.
+- **Adding tokens**: If you need a value that doesn't exist yet (e.g., a new semantic color), add it to `theme.css` first, then use it.
 
 ## Environment variables
 
