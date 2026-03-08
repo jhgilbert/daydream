@@ -14,8 +14,8 @@ export default async function Home() {
       <>
         <TimeUntilMeeting />
         <main className={styles.main}>
-          <TodoList />
           <MeetingList />
+          <TodoList />
           <ProjectList />
         </main>
         <footer className={styles.footer}>
