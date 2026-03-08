@@ -1,7 +1,10 @@
 "use client";
 
 import { useRef, useState, useEffect, type KeyboardEvent } from "react";
-import { useSlashCommands, type SlashCommand } from "./SlashCommandProvider";
+import {
+  useSlashCommands,
+  type SlashCommand,
+} from "./SlashCommandProvider";
 import styles from "./CommandBar.module.css";
 
 export function CommandBar() {
@@ -11,8 +14,11 @@ export function CommandBar() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { todos } = useSlashCommands();
   const matchedCommand = parseCommand(value, commands);
   const filteredCommands = getFilteredCommands(value, commands);
+  const visibleTodos = todos.filter((t) => !t.deleted);
+  const showTaskRef = matchedCommand?.showTaskReference && visibleTodos.length > 0;
 
   // Show suggestions when input starts with /
   useEffect(() => {
@@ -120,6 +126,16 @@ export function CommandBar() {
               <div className={styles.commandUsage}>
                 /{cmd.name} {cmd.argPlaceholder}
               </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {showTaskRef && (
+        <ul className={styles.taskReference}>
+          {visibleTodos.map((todo, i) => (
+            <li key={todo.id} className={styles.taskRefItem}>
+              <span className={styles.taskRefNumber}>{i + 1}</span>
+              <span className={todo.done ? styles.taskRefTextDone : styles.taskRefText}>{todo.text}</span>
             </li>
           ))}
         </ul>

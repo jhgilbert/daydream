@@ -79,3 +79,43 @@
   font-size: var(--text-sm);
   color: var(--color-muted);
 }
+
+.taskReference {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) 0;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-lg);
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.taskRefItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-6);
+  font-size: var(--text-sm);
+}
+
+.taskRefNumber {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-500);
+  min-width: 1.5rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.taskRefText {
+  color: var(--color-foreground);
+}
+
+.taskRefTextDone {
+  color: var(--color-muted);
+  text-decoration: line-through;
+}

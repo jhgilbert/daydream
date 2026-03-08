@@ -56,3 +56,9 @@
   line-height: var(--leading-normal);
   text-decoration: line-through;
 }
+
+.divider {
+  border: none;
+  border-top: 2px dotted var(--color-primary-400);
+  margin: var(--space-1) var(--space-3);
+}

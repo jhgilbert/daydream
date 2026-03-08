@@ -25,6 +25,7 @@ model Todo {
   text      String
   done      Boolean  @default(false)
   deleted   Boolean  @default(false)
+  priority  Int      @default(1)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

@@ -12,11 +12,14 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { done } = await request.json();
+  const body = await request.json();
+  const data: Record<string, unknown> = {};
+  if (typeof body.done === "boolean") data.done = body.done;
+  if (typeof body.priority === "number") data.priority = body.priority;
 
   const todo = await prisma.todo.updateMany({
     where: { id, userId: session.user.id },
-    data: { done },
+    data,
   });
 
   if (todo.count === 0) {

@@ -15,6 +15,7 @@ export interface TodoItem {
   text: string;
   done: boolean;
   deleted: boolean;
+  priority: number;
 }
 
 export interface Meeting {
@@ -29,6 +30,8 @@ export interface SlashCommand {
   description: string;
   argPlaceholder: string;
   execute: (args: string) => void;
+  /** When true, show numbered task list as context when this command is active */
+  showTaskReference?: boolean;
 }
 
 interface SlashCommandContextValue {
@@ -357,6 +360,63 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     [notify]
   );
 
+  const setPriority = useCallback(
+    async (args: string, priority: number) => {
+      const nums = args
+        .split(/[\s,]+/)
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n));
+      if (nums.length === 0) {
+        notify(`Usage: /p${priority} 1, 2, 5`);
+        return;
+      }
+
+      const activeTodos = todos.filter((t) => !t.deleted);
+      const targets: TodoItem[] = [];
+      for (const num of nums) {
+        const todo = activeTodos[num - 1];
+        if (!todo) {
+          notify(`Task #${num} does not exist`);
+          return;
+        }
+        targets.push(todo);
+      }
+
+      // Optimistic update
+      setTodos((prev) =>
+        prev.map((t) =>
+          targets.some((tgt) => tgt.id === t.id)
+            ? { ...t, priority }
+            : t
+        )
+      );
+
+      try {
+        await Promise.all(
+          targets.map((t) =>
+            fetch(`/api/todos/${t.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ priority }),
+            }).then((res) => {
+              if (!res.ok) throw new Error();
+            })
+          )
+        );
+      } catch {
+        // Revert on failure
+        setTodos((prev) =>
+          prev.map((t) => {
+            const original = targets.find((tgt) => tgt.id === t.id);
+            return original ? { ...t, priority: original.priority } : t;
+          })
+        );
+        notify("Failed to update priority");
+      }
+    },
+    [todos, notify]
+  );
+
   const commands: SlashCommand[] = [
     {
       name: "todo",
@@ -375,6 +435,20 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       description: "Clear meetings, todos, or completed",
       argPlaceholder: "meetings | todos | completed",
       execute: clearCommand,
+    },
+    {
+      name: "p0",
+      description: "Mark tasks as highest priority",
+      argPlaceholder: "1, 2, 5",
+      execute: (args) => setPriority(args, 0),
+      showTaskReference: true,
+    },
+    {
+      name: "p1",
+      description: "Revert tasks to normal priority",
+      argPlaceholder: "1, 2, 5",
+      execute: (args) => setPriority(args, 1),
+      showTaskReference: true,
     },
   ];
 
