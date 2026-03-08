@@ -1,4 +1,5 @@
 import { auth, signIn, signOut } from "@/auth";
+import { MeetingList } from "@/components/MeetingList";
 import { TestNotificationButton } from "@/components/TestNotificationButton";
 import { TodoList } from "@/components/TodoList";
 import { CommandBar } from "@/components/CommandBar";
@@ -12,6 +13,7 @@ export default async function Home() {
       <>
         <main className={styles.main}>
           <TodoList />
+          <MeetingList />
           <TestNotificationButton className={styles.button} />
         </main>
         <footer className={styles.footer}>
