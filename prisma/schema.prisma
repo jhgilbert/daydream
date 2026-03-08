@@ -30,6 +30,7 @@ model Todo {
   blocked   Boolean   @default(false)
   queen     Boolean   @default(false)
   priority  Int       @default(1)
+  sortOrder Int       @default(0)
   deadline  DateTime?
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)

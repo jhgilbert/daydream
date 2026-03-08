@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function PATCH(
-  request: Request,
+export async function DELETE(
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -12,19 +12,12 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const body = await request.json();
-  const data: Record<string, unknown> = {};
-  if (typeof body.done === "boolean") data.done = body.done;
-  if (typeof body.priority === "number") data.priority = body.priority;
-  if (typeof body.blocked === "boolean") data.blocked = body.blocked;
-  if (typeof body.deleted === "boolean") data.deleted = body.deleted;
 
-  const todo = await prisma.todo.updateMany({
+  const result = await prisma.project.deleteMany({
     where: { id, userId: session.user.id },
-    data,
   });
 
-  if (todo.count === 0) {
+  if (result.count === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

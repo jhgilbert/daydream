@@ -5,6 +5,7 @@ import {
   useSlashCommands,
   type SlashCommand,
   type InteractivePrompt,
+  type ArgSuggestion,
 } from "./SlashCommandProvider";
 import styles from "./CommandBar.module.css";
 
@@ -20,6 +21,7 @@ export function CommandBar() {
   const [value, setValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [argSelectedIndex, setArgSelectedIndex] = useState(0);
   const [interactive, setInteractive] = useState<InteractiveState | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -32,6 +34,13 @@ export function CommandBar() {
     : visibleTodos;
   const showTaskRef = matchedCommand?.showTaskReference && refTodos.length > 0;
 
+  // Arg-level suggestions
+  const argInput = matchedCommand ? value.replace(/^\/\S+\s/, "") : "";
+  const argSuggestions: ArgSuggestion[] =
+    matchedCommand?.getArgSuggestions?.(argInput) ?? [];
+  const showArgSuggestions =
+    matchedCommand?.getArgSuggestions != null && argSuggestions.length > 0;
+
   // Show suggestions when input starts with /
   useEffect(() => {
     if (value.startsWith("/")) {
@@ -41,6 +50,11 @@ export function CommandBar() {
       setShowSuggestions(false);
     }
   }, [value]);
+
+  // Reset arg selection when suggestions change
+  useEffect(() => {
+    setArgSelectedIndex(0);
+  }, [argInput]);
 
   function parseCommand(
     input: string,
@@ -60,6 +74,11 @@ export function CommandBar() {
     // If a full command has been typed followed by a space, don't show the menu
     if (matchedCommand) return [];
     return cmds.filter((c) => c.name.startsWith(typed));
+  }
+
+  function selectArgSuggestion(suggestion: ArgSuggestion) {
+    setValue(`/${matchedCommand!.name} ${suggestion.value}`);
+    inputRef.current?.focus();
   }
 
   function handleSubmit() {
@@ -126,6 +145,27 @@ export function CommandBar() {
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    // Arg-level suggestion navigation
+    if (showArgSuggestions) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setArgSelectedIndex((i) => (i + 1) % argSuggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setArgSelectedIndex(
+          (i) => (i - 1 + argSuggestions.length) % argSuggestions.length
+        );
+        return;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        selectArgSuggestion(argSuggestions[argSelectedIndex]);
+        return;
+      }
+    }
+
     if (showSuggestions && filteredCommands.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -190,6 +230,25 @@ export function CommandBar() {
               <div className={styles.commandUsage}>
                 /{cmd.name} {cmd.argPlaceholder}
               </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {showArgSuggestions && (
+        <ul className={styles.suggestions} role="listbox">
+          {argSuggestions.map((s, i) => (
+            <li
+              key={`${s.value}-${i}`}
+              role="option"
+              aria-selected={i === argSelectedIndex}
+              className={`${styles.argSuggestion} ${i === argSelectedIndex ? styles.suggestionSelected : ""}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                selectArgSuggestion(s);
+              }}
+            >
+              <span className={styles.argSuggestionLabel}>{s.label}</span>
+              <span className={styles.argSuggestionHint}>Tab to select</span>
             </li>
           ))}
         </ul>

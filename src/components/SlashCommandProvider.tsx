@@ -18,6 +18,7 @@ export interface TodoItem {
   blocked: boolean;
   queen: boolean;
   priority: number;
+  sortOrder: number;
   deadline?: string;
 }
 
@@ -39,6 +40,11 @@ export interface InteractivePrompt {
   required: boolean;
 }
 
+export interface ArgSuggestion {
+  label: string;
+  value: string;
+}
+
 export interface SlashCommand {
   name: string;
   description: string;
@@ -52,11 +58,14 @@ export interface SlashCommand {
   interactivePrompts?: InteractivePrompt[];
   /** Called with collected answers from the interactive flow */
   executeInteractive?: (answers: Record<string, string>) => void;
+  /** Return suggestions for the argument portion of the command */
+  getArgSuggestions?: (input: string) => ArgSuggestion[];
 }
 
 interface SlashCommandContextValue {
   todos: TodoItem[];
   toggleTodo: (id: string) => void;
+  reorderTodos: (orderedIds: string[]) => void;
   meetings: Meeting[];
   removeMeeting: (id: string) => void;
   eodTime: Date | null;
@@ -430,6 +439,32 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const reorderTodos = useCallback(
+    (orderedIds: string[]) => {
+      setTodos((prev) => {
+        const byId = new Map(prev.map((t) => [t.id, t]));
+        const reordered = orderedIds
+          .map((id, i) => {
+            const todo = byId.get(id);
+            return todo ? { ...todo, sortOrder: i } : null;
+          })
+          .filter((t): t is TodoItem => t !== null);
+
+        // Include any todos not in orderedIds (other buckets) unchanged
+        const reorderedSet = new Set(orderedIds);
+        const rest = prev.filter((t) => !reorderedSet.has(t.id));
+        return [...reordered, ...rest];
+      });
+
+      fetch("/api/todos/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds }),
+      }).catch(() => notify("Failed to save todo order"));
+    },
+    [notify]
+  );
+
   const reorderProjects = useCallback(
     (fromIndex: number, toIndex: number) => {
       setProjects((prev) => {
@@ -672,6 +707,86 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     [todos, notify]
   );
 
+  const deleteItem = useCallback(
+    async (args: string) => {
+      const query = args.trim().toLowerCase();
+      if (!query) {
+        notify("Start typing a name to find an item to delete");
+        return;
+      }
+
+      // Find exact match among all deletable items
+      const activeTodos = todos.filter((t) => !t.deleted);
+      const matchedTodo = activeTodos.find(
+        (t) => t.text.toLowerCase() === query
+      );
+      if (matchedTodo) {
+        setTodos((prev) =>
+          prev.map((t) => (t.id === matchedTodo.id ? { ...t, deleted: true } : t))
+        );
+        fetch(`/api/todos/${matchedTodo.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deleted: true }),
+        }).catch(() => notify("Failed to delete todo"));
+        return;
+      }
+
+      const matchedMeeting = meetings.find(
+        (m) => (m.label ?? "").toLowerCase() === query
+      );
+      if (matchedMeeting) {
+        setMeetings((prev) => prev.filter((m) => m.id !== matchedMeeting.id));
+        fetch(`/api/meetings/${matchedMeeting.id}`, {
+          method: "DELETE",
+        }).catch(() => notify("Failed to delete meeting"));
+        return;
+      }
+
+      const matchedProject = projects.find(
+        (p) => p.name.toLowerCase() === query
+      );
+      if (matchedProject) {
+        setProjects((prev) => prev.filter((p) => p.id !== matchedProject.id));
+        fetch(`/api/projects/${matchedProject.id}`, {
+          method: "DELETE",
+        }).catch(() => notify("Failed to delete project"));
+        return;
+      }
+
+      notify("No matching item found");
+    },
+    [todos, meetings, projects, notify]
+  );
+
+  const getDeleteSuggestions = useCallback(
+    (input: string): ArgSuggestion[] => {
+      const query = input.toLowerCase();
+      const results: ArgSuggestion[] = [];
+
+      for (const t of todos) {
+        if (t.deleted) continue;
+        if (!query || t.text.toLowerCase().includes(query)) {
+          results.push({ label: `todo: ${t.text}`, value: t.text });
+        }
+      }
+      for (const m of meetings) {
+        const label = m.label ?? "";
+        if (label && (!query || label.toLowerCase().includes(query))) {
+          results.push({ label: `meeting: ${label}`, value: label });
+        }
+      }
+      for (const p of projects) {
+        if (!query || p.name.toLowerCase().includes(query)) {
+          results.push({ label: `project: ${p.name}`, value: p.name });
+        }
+      }
+
+      return results;
+    },
+    [todos, meetings, projects]
+  );
+
   const commands: SlashCommand[] = [
     {
       name: "todo",
@@ -763,11 +878,18 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       argPlaceholder: "6pm or 5:30pm",
       execute: setEod,
     },
+    {
+      name: "delete",
+      description: "Delete a todo, meeting, or project",
+      argPlaceholder: "Start typing to search...",
+      execute: deleteItem,
+      getArgSuggestions: getDeleteSuggestions,
+    },
   ];
 
   return (
     <SlashCommandContext.Provider
-      value={{ todos, toggleTodo, meetings, removeMeeting, eodTime, projects, reorderProjects, commands }}
+      value={{ todos, toggleTodo, reorderTodos, meetings, removeMeeting, eodTime, projects, reorderProjects, commands }}
     >
       {children}
     </SlashCommandContext.Provider>

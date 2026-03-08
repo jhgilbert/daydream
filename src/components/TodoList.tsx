@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
-import { useSlashCommands } from "./SlashCommandProvider";
+import { useSlashCommands, type TodoItem } from "./SlashCommandProvider";
 import { playChime } from "./NotificationProvider";
 import styles from "./TodoList.module.css";
 
@@ -20,9 +20,18 @@ function formatCountdown(ms: number): string {
   return `${minutes}m left`;
 }
 
+/** Priority bucket rank: P0 (0) → queen (1) → regular P1 (2) */
+const sortRank = (t: TodoItem) =>
+  t.priority === 0 ? 0 : t.queen ? 1 : 2;
+
 export function TodoList() {
-  const { todos, toggleTodo } = useSlashCommands();
+  const { todos, toggleTodo, reorderTodos } = useSlashCommands();
   const [now, setNow] = useState(() => new Date());
+
+  // Drag-and-drop state
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragRank, setDragRank] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const handleToggle = useCallback(
     (id: string, currentlyDone: boolean) => {
@@ -62,18 +71,71 @@ export function TodoList() {
   }, [now, todos]);
 
   const visibleTodos = todos.filter((t) => !t.deleted);
-  // Sort rank: P0 (0) → queen (1) → regular P1 (2)
-  const sortRank = (t: typeof visibleTodos[number]) =>
-    t.priority === 0 ? 0 : t.queen ? 1 : 2;
   const sortedTodos = [...visibleTodos].sort((a, b) => {
     const ra = sortRank(a);
     const rb = sortRank(b);
     if (ra !== rb) return ra - rb;
-    // Within the same rank, deadline tasks come before non-deadline tasks
+    // Within the same rank, sort by sortOrder then createdAt
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
     const aHas = a.deadline ? 0 : 1;
     const bHas = b.deadline ? 0 : 1;
     return aHas - bHas;
   });
+
+  // Drag handlers
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, todo: TodoItem) => {
+      setDragId(todo.id);
+      setDragRank(sortRank(todo));
+      e.dataTransfer.effectAllowed = "move";
+    },
+    [],
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, todo: TodoItem) => {
+      if (dragRank === null || sortRank(todo) !== dragRank) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverId(todo.id);
+    },
+    [dragRank],
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, dropTodo: TodoItem) => {
+      e.preventDefault();
+      if (!dragId || dragRank === null || sortRank(dropTodo) !== dragRank) return;
+
+      const bucketTodos = sortedTodos.filter((t) => sortRank(t) === dragRank);
+      const fromIndex = bucketTodos.findIndex((t) => t.id === dragId);
+      const toIndex = bucketTodos.findIndex((t) => t.id === dropTodo.id);
+
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+        setDragId(null);
+        setDragRank(null);
+        setDragOverId(null);
+        return;
+      }
+
+      const reordered = [...bucketTodos];
+      const [moved] = reordered.splice(fromIndex, 1);
+      reordered.splice(toIndex, 0, moved);
+
+      reorderTodos(reordered.map((t) => t.id));
+
+      setDragId(null);
+      setDragRank(null);
+      setDragOverId(null);
+    },
+    [dragId, dragRank, sortedTodos, reorderTodos],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragId(null);
+    setDragRank(null);
+    setDragOverId(null);
+  }, []);
 
   if (sortedTodos.length === 0) return null;
 
@@ -81,6 +143,8 @@ export function TodoList() {
   const hasAboveFold = sortedTodos.some((t) => t.priority === 0 || t.queen);
   const hasBelowFold = sortedTodos.some((t) => t.priority !== 0 && !t.queen);
   const showDivider = hasAboveFold && hasBelowFold;
+
+  const isDragging = dragId !== null;
 
   return (
     <section className={styles.container}>
@@ -97,9 +161,18 @@ export function TodoList() {
             msUntilDeadline < 0 &&
             !todo.done;
 
+          const rank = sortRank(todo);
+          const inDragBucket = dragRank !== null && rank === dragRank;
+          const outsideDragBucket = isDragging && !inDragBucket;
+          const isBeingDragged = todo.id === dragId;
+          const isDropTarget = todo.id === dragOverId;
+
           const itemClasses = [
             styles.item,
             isOverdue ? styles.breathing : "",
+            outsideDragBucket ? styles.dimmed : "",
+            isBeingDragged ? styles.dragging : "",
+            isDropTarget ? styles.dropTarget : "",
           ]
             .filter(Boolean)
             .join(" ");
@@ -112,7 +185,14 @@ export function TodoList() {
                 sortRank(sortedTodos[i - 1]) < 2 && (
                   <li key="divider" className={styles.divider} aria-hidden />
                 )}
-              <li className={itemClasses}>
+              <li
+                className={itemClasses}
+                draggable
+                onDragStart={(e) => handleDragStart(e, todo)}
+                onDragOver={(e) => handleDragOver(e, todo)}
+                onDrop={(e) => handleDrop(e, todo)}
+                onDragEnd={handleDragEnd}
+              >
                 <label className={styles.label}>
                   <input
                     type="checkbox"
