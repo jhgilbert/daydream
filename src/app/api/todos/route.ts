@@ -22,13 +22,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { text } = await request.json();
+  const { text, deadline, priority } = await request.json();
   if (!text || typeof text !== "string") {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
   }
 
   const todo = await prisma.todo.create({
-    data: { text: text.trim(), userId: session.user.id },
+    data: {
+      text: text.trim(),
+      userId: session.user.id,
+      ...(typeof deadline === "string" && { deadline: new Date(deadline) }),
+      ...(typeof priority === "number" && { priority }),
+    },
   });
 
   return NextResponse.json(todo, { status: 201 });

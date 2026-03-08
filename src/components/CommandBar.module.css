@@ -117,5 +117,4 @@
 
 .taskRefTextDone {
   color: var(--color-muted);
-  text-decoration: line-through;
 }

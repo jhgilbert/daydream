@@ -1,13 +1,42 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import { useSlashCommands } from "./SlashCommandProvider";
 import styles from "./TodoList.module.css";
 
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.abs(Math.ceil(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  if (ms < 0) {
+    // Overdue
+    if (hours > 0) return `${hours}h ${minutes}m overdue`;
+    return `${minutes}m overdue`;
+  }
+  if (hours > 0) return `${hours}h ${minutes}m left`;
+  return `${minutes}m left`;
+}
+
 export function TodoList() {
   const { todos, toggleTodo } = useSlashCommands();
+  const [now, setNow] = useState(() => new Date());
+
+  // Tick every 30s so countdowns update
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const visibleTodos = todos.filter((t) => !t.deleted);
-  const sortedTodos = [...visibleTodos].sort((a, b) => a.priority - b.priority);
+  const sortedTodos = [...visibleTodos].sort((a, b) => {
+    // Sort by priority first
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    // Within the same priority, deadline tasks come before non-deadline tasks
+    const aHas = a.deadline ? 0 : 1;
+    const bHas = b.deadline ? 0 : 1;
+    return aHas - bHas;
+  });
 
   if (sortedTodos.length === 0) return null;
 
@@ -19,29 +48,65 @@ export function TodoList() {
     <section className={styles.container}>
       <h2 className={styles.heading}>Todos</h2>
       <ul className={styles.list}>
-        {sortedTodos.map((todo, i) => (
-          <>
-            {showDivider &&
-              i > 0 &&
-              todo.priority === 1 &&
-              sortedTodos[i - 1].priority === 0 && (
-                <li key="divider" className={styles.divider} aria-hidden />
-              )}
-            <li key={todo.id} className={styles.item}>
-              <label className={styles.label}>
-                <input
-                  type="checkbox"
-                  checked={todo.done}
-                  onChange={() => toggleTodo(todo.id)}
-                  className={styles.checkbox}
-                />
-                <span className={todo.done ? styles.textDone : styles.text}>
-                  {todo.text}
-                </span>
-              </label>
-            </li>
-          </>
-        ))}
+        {sortedTodos.map((todo, i) => {
+          const deadline = todo.deadline ? new Date(todo.deadline) : null;
+          const msUntilDeadline = deadline
+            ? deadline.getTime() - now.getTime()
+            : null;
+          const isOverdue =
+            deadline !== null &&
+            msUntilDeadline !== null &&
+            msUntilDeadline < 0 &&
+            !todo.done;
+
+          const itemClasses = [
+            styles.item,
+            isOverdue ? styles.breathing : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          return (
+            <React.Fragment key={todo.id}>
+              {showDivider &&
+                i > 0 &&
+                todo.priority === 1 &&
+                sortedTodos[i - 1].priority === 0 && (
+                  <li key="divider" className={styles.divider} aria-hidden />
+                )}
+              <li className={itemClasses}>
+                <label className={styles.label}>
+                  <input
+                    type="checkbox"
+                    checked={todo.done}
+                    onChange={() => toggleTodo(todo.id)}
+                    className={styles.checkbox}
+                  />
+                  <span
+                    className={
+                      todo.done
+                        ? styles.textDone
+                        : isOverdue
+                          ? styles.textOverdue
+                          : styles.text
+                    }
+                  >
+                    {todo.text}
+                  </span>
+                </label>
+                {deadline && msUntilDeadline !== null && !todo.done && (
+                  <span
+                    className={
+                      isOverdue ? styles.countdownOverdue : styles.countdown
+                    }
+                  >
+                    {formatCountdown(msUntilDeadline)}
+                  </span>
+                )}
+              </li>
+            </React.Fragment>
+          );
+        })}
       </ul>
     </section>
   );

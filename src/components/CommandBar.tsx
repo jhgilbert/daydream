@@ -4,14 +4,23 @@ import { useRef, useState, useEffect, type KeyboardEvent } from "react";
 import {
   useSlashCommands,
   type SlashCommand,
+  type InteractivePrompt,
 } from "./SlashCommandProvider";
 import styles from "./CommandBar.module.css";
+
+interface InteractiveState {
+  command: SlashCommand;
+  prompts: InteractivePrompt[];
+  currentIndex: number;
+  answers: Record<string, string>;
+}
 
 export function CommandBar() {
   const { commands } = useSlashCommands();
   const [value, setValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [interactive, setInteractive] = useState<InteractiveState | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { todos } = useSlashCommands();
@@ -51,6 +60,34 @@ export function CommandBar() {
   }
 
   function handleSubmit() {
+    // Interactive mode: advance through prompts
+    if (interactive) {
+      const prompt = interactive.prompts[interactive.currentIndex];
+      const answer = value.trim();
+
+      // If required and empty, re-ask
+      if (prompt.required && !answer) return;
+
+      const updatedAnswers = { ...interactive.answers, [prompt.key]: answer };
+      const nextIndex = interactive.currentIndex + 1;
+
+      if (nextIndex < interactive.prompts.length) {
+        // Advance to next prompt
+        setInteractive({
+          ...interactive,
+          currentIndex: nextIndex,
+          answers: updatedAnswers,
+        });
+        setValue("");
+      } else {
+        // All prompts collected — execute
+        interactive.command.executeInteractive?.(updatedAnswers);
+        setInteractive(null);
+        setValue("");
+      }
+      return;
+    }
+
     const trimmed = value.trim();
     if (!trimmed) return;
 
@@ -58,7 +95,25 @@ export function CommandBar() {
     if (cmdMatch) {
       const cmd = commands.find((c) => c.name === cmdMatch[1]);
       if (cmd) {
-        cmd.execute(cmdMatch[2] ?? "");
+        const args = cmdMatch[2] ?? "";
+        // If no args and command has interactive prompts, enter interactive mode
+        if (
+          !args &&
+          cmd.interactivePrompts &&
+          cmd.interactivePrompts.length > 0 &&
+          cmd.executeInteractive
+        ) {
+          setInteractive({
+            command: cmd,
+            prompts: cmd.interactivePrompts,
+            currentIndex: 0,
+            answers: {},
+          });
+          setValue("");
+          setShowSuggestions(false);
+          return;
+        }
+        cmd.execute(args);
         setValue("");
         setShowSuggestions(false);
         return;
@@ -95,13 +150,19 @@ export function CommandBar() {
     }
 
     if (e.key === "Escape") {
+      if (interactive) {
+        setInteractive(null);
+        setValue("");
+      }
       setShowSuggestions(false);
     }
   }
 
-  const placeholder = matchedCommand
-    ? `/${matchedCommand.name} ${matchedCommand.argPlaceholder}`
-    : "Type / for commands...";
+  const placeholder = interactive
+    ? interactive.prompts[interactive.currentIndex].question
+    : matchedCommand
+      ? `/${matchedCommand.name} ${matchedCommand.argPlaceholder}`
+      : "Type / for commands...";
 
   return (
     <div className={styles.wrapper}>

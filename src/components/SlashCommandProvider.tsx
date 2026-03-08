@@ -16,6 +16,7 @@ export interface TodoItem {
   done: boolean;
   deleted: boolean;
   priority: number;
+  deadline?: string;
 }
 
 export interface Meeting {
@@ -25,6 +26,12 @@ export interface Meeting {
   endTime: Date;
 }
 
+export interface InteractivePrompt {
+  key: string;
+  question: string;
+  required: boolean;
+}
+
 export interface SlashCommand {
   name: string;
   description: string;
@@ -32,6 +39,10 @@ export interface SlashCommand {
   execute: (args: string) => void;
   /** When true, show numbered task list as context when this command is active */
   showTaskReference?: boolean;
+  /** When provided, entering the command with no args starts an interactive flow */
+  interactivePrompts?: InteractivePrompt[];
+  /** Called with collected answers from the interactive flow */
+  executeInteractive?: (answers: Record<string, string>) => void;
 }
 
 interface SlashCommandContextValue {
@@ -211,6 +222,61 @@ function hydrateMeeting(raw: Record<string, unknown>): Meeting {
   };
 }
 
+/**
+ * Parse a deadline string like "In 3 hours", "By 3pm", "in 3 h", "in 3 m".
+ * Returns a Date or null if input is empty/unparseable.
+ */
+function parseDeadline(input: string): Date | null {
+  const trimmed = input.trim().toLowerCase();
+  if (!trimmed) return null;
+
+  // "in X hours/h/minutes/m"
+  const relativeMatch = trimmed.match(
+    /^in\s+(\d+)\s*(hours?|h|minutes?|mins?|m)$/
+  );
+  if (relativeMatch) {
+    const amount = Number(relativeMatch[1]);
+    const unit = relativeMatch[2];
+    const ms =
+      unit.startsWith("h") ? amount * 60 * 60 * 1000 : amount * 60 * 1000;
+    return new Date(Date.now() + ms);
+  }
+
+  // "by 3pm", "by 3:30 pm", "by 3 pm"
+  const byMatch = trimmed.match(
+    /^by\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/
+  );
+  if (byMatch) {
+    let hour = Number(byMatch[1]);
+    const minute = Number(byMatch[2] || "0");
+    const meridiem = byMatch[3];
+
+    if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return null;
+
+    if (meridiem === "pm" && hour !== 12) hour += 12;
+    if (meridiem === "am" && hour === 12) hour = 0;
+
+    const { year, month, day } = getChicagoToday();
+    let deadline = buildChicagoDate(year, month, day, hour, minute);
+
+    // If the time has already passed today, push to tomorrow
+    if (deadline.getTime() <= Date.now()) {
+      const tomorrow = addDays(year, month, day, 1);
+      deadline = buildChicagoDate(
+        tomorrow.year,
+        tomorrow.month,
+        tomorrow.day,
+        hour,
+        minute
+      );
+    }
+
+    return deadline;
+  }
+
+  return null;
+}
+
 export function SlashCommandProvider({ children }: { children: ReactNode }) {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -229,15 +295,21 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addTodo = useCallback(
-    async (text: string) => {
+    async (text: string, deadline?: Date) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+
+      const body: Record<string, unknown> = { text: trimmed };
+      if (deadline) {
+        body.deadline = deadline.toISOString();
+        body.priority = 0; // deadline tasks are automatically p0
+      }
 
       try {
         const res = await fetch("/api/todos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: trimmed }),
+          body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error();
         const todo = await res.json();
@@ -422,7 +494,19 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       name: "todo",
       description: "Add an item to the todo list",
       argPlaceholder: "What needs to be done?",
-      execute: addTodo,
+      execute: (args) => addTodo(args),
+      interactivePrompts: [
+        { key: "text", question: "What do you want to do?", required: true },
+        {
+          key: "deadline",
+          question: "When do you want to do it?",
+          required: false,
+        },
+      ],
+      executeInteractive: (answers) => {
+        const deadline = parseDeadline(answers.deadline);
+        addTodo(answers.text, deadline ?? undefined);
+      },
     },
     {
       name: "meetings",
