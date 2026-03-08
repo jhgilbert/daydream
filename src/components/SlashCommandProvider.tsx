@@ -305,8 +305,8 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
   const [eodTime, setEodTime] = useState<Date | null>(null);
   const { notify } = useNotification();
 
-  // Load initial data from the server
-  useEffect(() => {
+  // Fetch all data from the server
+  const fetchAllData = useCallback(() => {
     fetch("/api/eod")
       .then((r) => (r.ok ? r.json() : { eodTime: null }))
       .then((data) => {
@@ -314,7 +314,11 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
           const date = new Date(data.eodTime);
           if (date.getTime() > Date.now()) {
             setEodTime(date);
+          } else {
+            setEodTime(null);
           }
+        } else {
+          setEodTime(null);
         }
       });
     fetch("/api/todos")
@@ -329,6 +333,13 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setProjects(data));
   }, []);
+
+  // Load initial data and poll every 60 seconds for cross-device sync
+  useEffect(() => {
+    fetchAllData();
+    const interval = setInterval(fetchAllData, 60_000);
+    return () => clearInterval(interval);
+  }, [fetchAllData]);
 
   const addTodo = useCallback(
     async (text: string, deadline?: Date, queen?: boolean) => {
