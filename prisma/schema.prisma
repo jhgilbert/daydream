@@ -14,6 +14,7 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  eodTime       DateTime?
   todos         Todo[]
   meetings      Meeting[]
   projects      Project[]

@@ -59,6 +59,7 @@ interface SlashCommandContextValue {
   toggleTodo: (id: string) => void;
   meetings: Meeting[];
   removeMeeting: (id: string) => void;
+  eodTime: Date | null;
   projects: ProjectItem[];
   reorderProjects: (fromIndex: number, toIndex: number) => void;
   commands: SlashCommand[];
@@ -292,10 +293,21 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [eodTime, setEodTime] = useState<Date | null>(null);
   const { notify } = useNotification();
 
   // Load initial data from the server
   useEffect(() => {
+    fetch("/api/eod")
+      .then((r) => (r.ok ? r.json() : { eodTime: null }))
+      .then((data) => {
+        if (data.eodTime) {
+          const date = new Date(data.eodTime);
+          if (date.getTime() > Date.now()) {
+            setEodTime(date);
+          }
+        }
+      });
     fetch("/api/todos")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setTodos(data));
@@ -460,6 +472,51 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     [notify]
   );
 
+  const setEod = useCallback(
+    (args: string) => {
+      const trimmed = args.trim().toLowerCase();
+      if (!trimmed) {
+        notify("Usage: /eod 6pm or /eod 5:30pm");
+        return;
+      }
+
+      const timeMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/i);
+      if (!timeMatch) {
+        notify("Usage: /eod 6pm or /eod 5:30pm");
+        return;
+      }
+
+      let hour = Number(timeMatch[1]);
+      const minute = Number(timeMatch[2] || "0");
+      const meridiem = timeMatch[3].toLowerCase();
+
+      if (hour < 1 || hour > 12 || minute < 0 || minute > 59) {
+        notify("Invalid time");
+        return;
+      }
+
+      if (meridiem === "pm" && hour !== 12) hour += 12;
+      if (meridiem === "am" && hour === 12) hour = 0;
+
+      const { year, month, day } = getChicagoToday();
+      let eod = buildChicagoDate(year, month, day, hour, minute);
+
+      // If the time has already passed today, push to tomorrow
+      if (eod.getTime() <= Date.now()) {
+        const tomorrow = addDays(year, month, day, 1);
+        eod = buildChicagoDate(tomorrow.year, tomorrow.month, tomorrow.day, hour, minute);
+      }
+
+      setEodTime(eod);
+      fetch("/api/eod", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eodTime: eod.toISOString() }),
+      }).catch(() => notify("Failed to save end-of-day time"));
+    },
+    [notify]
+  );
+
   const clearCommand = useCallback(
     async (args: string) => {
       const target = args.trim().toLowerCase();
@@ -483,8 +540,16 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
             body: JSON.stringify({ action: "clear-completed" }),
           });
           if (!res.ok) throw new Error();
+        } else if (target === "eod") {
+          setEodTime(null);
+          const res = await fetch("/api/eod", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ eodTime: null }),
+          });
+          if (!res.ok) throw new Error();
         } else {
-          notify("Usage: /clear meetings, todos, or completed");
+          notify("Usage: /clear meetings, todos, completed, or eod");
         }
       } catch {
         notify("Failed to clear");
@@ -652,8 +717,8 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     },
     {
       name: "clear",
-      description: "Clear meetings, todos, or completed",
-      argPlaceholder: "meetings | todos | completed",
+      description: "Clear meetings, todos, completed, or eod",
+      argPlaceholder: "meetings | todos | completed | eod",
       execute: clearCommand,
     },
     {
@@ -692,11 +757,17 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       argPlaceholder: "Project name",
       execute: (args) => addProject(args),
     },
+    {
+      name: "eod",
+      description: "Set end-of-day time",
+      argPlaceholder: "6pm or 5:30pm",
+      execute: setEod,
+    },
   ];
 
   return (
     <SlashCommandContext.Provider
-      value={{ todos, toggleTodo, meetings, removeMeeting, projects, reorderProjects, commands }}
+      value={{ todos, toggleTodo, meetings, removeMeeting, eodTime, projects, reorderProjects, commands }}
     >
       {children}
     </SlashCommandContext.Provider>

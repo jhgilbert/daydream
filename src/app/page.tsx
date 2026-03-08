@@ -1,5 +1,6 @@
 import { auth, signIn, signOut } from "@/auth";
 import { MeetingList } from "@/components/MeetingList";
+import { TimeUntilMeeting } from "@/components/TimeUntilMeeting";
 import { TodoList } from "@/components/TodoList";
 import { ProjectList } from "@/components/ProjectList";
 import { CommandBar } from "@/components/CommandBar";
@@ -11,6 +12,7 @@ export default async function Home() {
   if (session?.user) {
     return (
       <>
+        <TimeUntilMeeting />
         <main className={styles.main}>
           <TodoList />
           <MeetingList />

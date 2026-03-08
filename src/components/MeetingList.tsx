@@ -42,7 +42,7 @@ function formatCountdown(ms: number): string {
 }
 
 export function MeetingList() {
-  const { meetings, removeMeeting } = useSlashCommands();
+  const { meetings, removeMeeting, eodTime } = useSlashCommands();
   const [now, setNow] = useState(() => new Date());
 
   // Track which meetings have already chimed for breathing state
@@ -77,11 +77,12 @@ export function MeetingList() {
   }, [now, meetings, removeMeeting]);
 
   const activeMeetings = meetings.filter((m) => now < m.endTime);
-  if (activeMeetings.length === 0) return null;
+
+  const eodIsSet = eodTime && eodTime.getTime() > now.getTime();
 
   return (
     <section className={styles.container}>
-      <h2 className={styles.heading}>Meetings</h2>
+      <h2 className={styles.heading}>Schedule</h2>
       <ul className={styles.list}>
         {activeMeetings.map((meeting) => {
           const msUntilStart = meeting.startTime.getTime() - now.getTime();
@@ -122,6 +123,18 @@ export function MeetingList() {
             </li>
           );
         })}
+        <li className={styles.item}>
+          <div className={styles.left}>
+            <span className={styles.timeRange}>End of day</span>
+          </div>
+          <div className={styles.right}>
+            {eodIsSet ? (
+              <span className={styles.countdown}>{formatTime(eodTime)}</span>
+            ) : (
+              <span className={styles.notSet}>Time not set</span>
+            )}
+          </div>
+        </li>
       </ul>
     </section>
   );

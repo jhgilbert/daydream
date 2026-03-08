@@ -51,6 +51,10 @@ src/
 - **Global styles**: Only resets and base element styles belong in `src/app/globals.css`.
 - **Adding tokens**: If you need a value that doesn't exist yet (e.g., a new semantic color), add it to `theme.css` first, then use it.
 
+## Data persistence
+
+The user accesses this app from multiple devices. **Do not use `localStorage`** for persisting user data — always use the database via API routes. If you believe `localStorage` is the right choice for something (e.g., ephemeral UI state), check with the user first.
+
 ## Environment variables
 
 Required in `.env.local` for local dev:
