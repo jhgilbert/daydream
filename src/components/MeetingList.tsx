@@ -46,7 +46,7 @@ export function MeetingList() {
   const [now, setNow] = useState(() => new Date());
 
   // Track which meetings have already chimed for breathing state
-  const chimedBreathingRef = useRef<Set<number>>(new Set());
+  const chimedBreathingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 30_000);

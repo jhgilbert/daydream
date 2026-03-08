@@ -25,7 +25,7 @@ export function TodoList() {
   const [now, setNow] = useState(() => new Date());
 
   const handleToggle = useCallback(
-    (id: number, currentlyDone: boolean) => {
+    (id: string, currentlyDone: boolean) => {
       toggleTodo(id);
       if (!currentlyDone) {
         confetti({
@@ -39,7 +39,7 @@ export function TodoList() {
   );
 
   // Track which todos have already chimed for overdue state
-  const chimedOverdueRef = useRef<Set<number>>(new Set());
+  const chimedOverdueRef = useRef<Set<string>>(new Set());
 
   // Tick every 30s so countdowns update
   useEffect(() => {

@@ -52,6 +52,8 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
+
   const { orderedIds } = await request.json();
   if (!Array.isArray(orderedIds)) {
     return NextResponse.json({ error: "orderedIds is required" }, { status: 400 });
@@ -61,7 +63,7 @@ export async function PATCH(request: Request) {
   await Promise.all(
     orderedIds.map((id: string, index: number) =>
       prisma.project.updateMany({
-        where: { id, userId: session.user.id },
+        where: { id, userId },
         data: { sortOrder: index },
       })
     )
