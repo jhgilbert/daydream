@@ -113,8 +113,13 @@ export function CommandBar() {
                 inputRef.current?.focus();
               }}
             >
-              <span className={styles.commandName}>/{cmd.name}</span>
-              <span className={styles.commandDesc}>{cmd.description}</span>
+              <div className={styles.commandHeader}>
+                <span className={styles.commandName}>/{cmd.name}</span>
+                <span className={styles.commandDesc}>{cmd.description}</span>
+              </div>
+              <div className={styles.commandUsage}>
+                /{cmd.name} {cmd.argPlaceholder}
+              </div>
             </li>
           ))}
         </ul>

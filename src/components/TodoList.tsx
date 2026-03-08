@@ -6,13 +6,15 @@ import styles from "./TodoList.module.css";
 export function TodoList() {
   const { todos, toggleTodo } = useSlashCommands();
 
-  if (todos.length === 0) return null;
+  const visibleTodos = todos.filter((t) => !t.deleted);
+
+  if (visibleTodos.length === 0) return null;
 
   return (
     <section className={styles.container}>
       <h2 className={styles.heading}>Todos</h2>
       <ul className={styles.list}>
-        {todos.map((todo) => (
+        {visibleTodos.map((todo) => (
           <li key={todo.id} className={styles.item}>
             <label className={styles.label}>
               <input

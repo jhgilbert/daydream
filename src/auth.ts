@@ -10,4 +10,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       from: process.env.AUTH_RESEND_FROM ?? "onboarding@resend.dev",
     }),
   ],
+  callbacks: {
+    session({ session, user }) {
+      session.user.id = user.id;
+      return session;
+    },
+  },
 });

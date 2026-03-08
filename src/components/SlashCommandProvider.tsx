@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -13,6 +14,7 @@ export interface TodoItem {
   id: string;
   text: string;
   done: boolean;
+  deleted: boolean;
 }
 
 export interface Meeting {
@@ -136,9 +138,15 @@ function addDays(
   };
 }
 
-function parseMeetings(input: string): Meeting[] | null {
+interface ParsedMeeting {
+  label?: string;
+  startTime: Date;
+  endTime: Date;
+}
+
+function parseMeetings(input: string): ParsedMeeting[] | null {
   const entries = input.split(",").map((e) => e.trim());
-  const meetings: Meeting[] = [];
+  const meetings: ParsedMeeting[] = [];
   const now = new Date();
 
   for (const entry of entries) {
@@ -185,10 +193,19 @@ function parseMeetings(input: string): Meeting[] | null {
     }
 
     const label = labelWords.join(" ") || undefined;
-    meetings.push({ id: crypto.randomUUID(), label, startTime, endTime });
+    meetings.push({ label, startTime, endTime });
   }
 
   return meetings;
+}
+
+function hydrateMeeting(raw: Record<string, unknown>): Meeting {
+  return {
+    id: raw.id as string,
+    label: (raw.label as string) ?? undefined,
+    startTime: new Date(raw.startTime as string),
+    endTime: new Date(raw.endTime as string),
+  };
 }
 
 export function SlashCommandProvider({ children }: { children: ReactNode }) {
@@ -196,51 +213,145 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const { notify } = useNotification();
 
-  const addTodo = useCallback((text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setTodos((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), text: trimmed, done: false },
-    ]);
+  // Load initial data from the server
+  useEffect(() => {
+    fetch("/api/todos")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setTodos(data));
+    fetch("/api/meetings")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: Record<string, unknown>[]) =>
+        setMeetings(data.map(hydrateMeeting))
+      );
   }, []);
 
-  const toggleTodo = useCallback((id: string) => {
-    setTodos((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
-    );
-  }, []);
+  const addTodo = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
+      try {
+        const res = await fetch("/api/todos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: trimmed }),
+        });
+        if (!res.ok) throw new Error();
+        const todo = await res.json();
+        setTodos((prev) => [...prev, todo]);
+      } catch {
+        notify("Failed to add todo");
+      }
+    },
+    [notify]
+  );
+
+  const toggleTodo = useCallback(
+    async (id: string) => {
+      const todo = todos.find((t) => t.id === id);
+      if (!todo) return;
+
+      const newDone = !todo.done;
+      // Optimistic update
+      setTodos((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, done: newDone } : t))
+      );
+
+      try {
+        const res = await fetch(`/api/todos/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ done: newDone }),
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        // Revert on failure
+        setTodos((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, done: !newDone } : t))
+        );
+        notify("Failed to update todo");
+      }
+    },
+    [todos, notify]
+  );
 
   const addMeetings = useCallback(
-    (args: string) => {
+    async (args: string) => {
       const parsed = parseMeetings(args);
       if (!parsed) {
         notify("Usage: /meetings 12pm 30m, 3:30pm 60m Label");
         return;
       }
       if (parsed.length === 0) return;
-      setMeetings((prev) =>
-        [...prev, ...parsed].sort(
-          (a, b) => a.startTime.getTime() - b.startTime.getTime()
-        )
-      );
+
+      try {
+        const res = await fetch("/api/meetings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            meetings: parsed.map((m) => ({
+              label: m.label ?? null,
+              startTime: m.startTime.toISOString(),
+              endTime: m.endTime.toISOString(),
+            })),
+          }),
+        });
+        if (!res.ok) throw new Error();
+        const created: Record<string, unknown>[] = await res.json();
+        setMeetings((prev) =>
+          [...prev, ...created.map(hydrateMeeting)].sort(
+            (a, b) => a.startTime.getTime() - b.startTime.getTime()
+          )
+        );
+      } catch {
+        notify("Failed to add meetings");
+      }
     },
     [notify]
   );
 
-  const removeMeeting = useCallback((id: string) => {
-    setMeetings((prev) => prev.filter((m) => m.id !== id));
-  }, []);
+  const removeMeeting = useCallback(
+    async (id: string) => {
+      setMeetings((prev) => prev.filter((m) => m.id !== id));
+
+      try {
+        const res = await fetch(`/api/meetings/${id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error();
+      } catch {
+        // Meeting already removed from UI; no need to re-add an ended meeting
+      }
+    },
+    []
+  );
 
   const clearCommand = useCallback(
-    (args: string) => {
+    async (args: string) => {
       const target = args.trim().toLowerCase();
-      if (target === "meetings") {
-        setMeetings([]);
-      } else if (target === "todos") {
-        setTodos([]);
-      } else {
-        notify("Usage: /clear meetings or /clear todos");
+
+      try {
+        if (target === "meetings") {
+          setMeetings([]);
+          const res = await fetch("/api/meetings/bulk", { method: "DELETE" });
+          if (!res.ok) throw new Error();
+        } else if (target === "todos") {
+          setTodos([]);
+          const res = await fetch("/api/todos/bulk", { method: "DELETE" });
+          if (!res.ok) throw new Error();
+        } else if (target === "completed") {
+          setTodos((prev) =>
+            prev.map((t) => (t.done ? { ...t, deleted: true } : t))
+          );
+          const res = await fetch("/api/todos/bulk", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "clear-completed" }),
+          });
+          if (!res.ok) throw new Error();
+        } else {
+          notify("Usage: /clear meetings, todos, or completed");
+        }
+      } catch {
+        notify("Failed to clear");
       }
     },
     [notify]
@@ -261,8 +372,8 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     },
     {
       name: "clear",
-      description: "Clear meetings or todos",
-      argPlaceholder: "meetings or todos",
+      description: "Clear meetings, todos, or completed",
+      argPlaceholder: "meetings | todos | completed",
       execute: clearCommand,
     },
   ];
