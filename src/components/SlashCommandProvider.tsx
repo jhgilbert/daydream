@@ -27,6 +27,11 @@ export interface Meeting {
   endTime: Date;
 }
 
+export interface ProjectItem {
+  id: string;
+  name: string;
+}
+
 export interface InteractivePrompt {
   key: string;
   question: string;
@@ -53,6 +58,8 @@ interface SlashCommandContextValue {
   toggleTodo: (id: string) => void;
   meetings: Meeting[];
   removeMeeting: (id: string) => void;
+  projects: ProjectItem[];
+  reorderProjects: (fromIndex: number, toIndex: number) => void;
   commands: SlashCommand[];
 }
 
@@ -283,6 +290,7 @@ function parseDeadline(input: string): Date | null {
 export function SlashCommandProvider({ children }: { children: ReactNode }) {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
   const { notify } = useNotification();
 
   // Load initial data from the server
@@ -295,6 +303,9 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       .then((data: Record<string, unknown>[]) =>
         setMeetings(data.map(hydrateMeeting))
       );
+    fetch("/api/projects")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setProjects(data));
   }, []);
 
   const addTodo = useCallback(
@@ -400,6 +411,48 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       }
     },
     []
+  );
+
+  const reorderProjects = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      setProjects((prev) => {
+        const updated = [...prev];
+        const [moved] = updated.splice(fromIndex, 1);
+        updated.splice(toIndex, 0, moved);
+
+        // Persist new order in the background
+        const orderedIds = updated.map((p) => p.id);
+        fetch("/api/projects", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderedIds }),
+        }).catch(() => notify("Failed to save project order"));
+
+        return updated;
+      });
+    },
+    [notify]
+  );
+
+  const addProject = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+
+      try {
+        const res = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        });
+        if (!res.ok) throw new Error();
+        const project = await res.json();
+        setProjects((prev) => [...prev, project]);
+      } catch {
+        notify("Failed to add project");
+      }
+    },
+    [notify]
   );
 
   const clearCommand = useCallback(
@@ -610,11 +663,17 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       showTaskReference: true,
       filterTaskReference: (t) => t.blocked,
     },
+    {
+      name: "project",
+      description: "Add a project",
+      argPlaceholder: "Project name",
+      execute: (args) => addProject(args),
+    },
   ];
 
   return (
     <SlashCommandContext.Provider
-      value={{ todos, toggleTodo, meetings, removeMeeting, commands }}
+      value={{ todos, toggleTodo, meetings, removeMeeting, projects, reorderProjects, commands }}
     >
       {children}
     </SlashCommandContext.Provider>

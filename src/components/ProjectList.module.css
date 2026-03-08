@@ -1,0 +1,99 @@
+.container {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: var(--space-3);
+  font-family: var(--font-sans);
+}
+
+.heading {
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-foreground);
+}
+
+.toggle {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  transition: transform var(--transition-fast);
+}
+
+.toggleOpen {
+  composes: toggle;
+  transform: rotate(90deg);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+  cursor: grab;
+  user-select: none;
+}
+
+.item:hover {
+  background-color: var(--color-gray-50);
+}
+
+.item:active {
+  cursor: grabbing;
+}
+
+.itemDropTarget {
+  border-top: 2px solid var(--color-primary-400);
+  padding-top: calc(var(--space-2) - 2px);
+}
+
+.dragHandle {
+  font-size: var(--text-sm);
+  color: var(--color-gray-300);
+  margin-right: var(--space-2);
+  cursor: grab;
+  letter-spacing: -3px;
+  line-height: 1;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-400);
+  flex-shrink: 0;
+  margin-right: var(--space-3);
+}
+
+.name {
+  font-size: var(--text-base);
+  color: var(--color-foreground);
+  line-height: var(--leading-normal);
+}
+
+.empty {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  padding: var(--space-2) var(--space-3);
+}

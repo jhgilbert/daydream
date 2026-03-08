@@ -1,6 +1,7 @@
 import { auth, signIn, signOut } from "@/auth";
 import { MeetingList } from "@/components/MeetingList";
 import { TodoList } from "@/components/TodoList";
+import { ProjectList } from "@/components/ProjectList";
 import { CommandBar } from "@/components/CommandBar";
 import styles from "./page.module.css";
 
@@ -13,6 +14,7 @@ export default async function Home() {
         <main className={styles.main}>
           <TodoList />
           <MeetingList />
+          <ProjectList />
         </main>
         <footer className={styles.footer}>
           <span className={styles.footerStatus}>
