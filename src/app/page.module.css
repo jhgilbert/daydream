@@ -15,9 +15,38 @@
   margin-bottom: var(--space-6);
 }
 
-.status {
-  font-size: var(--text-lg);
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-6);
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-gray-50);
+}
+
+.footerStatus {
+  font-size: var(--text-sm);
   color: var(--color-muted);
+}
+
+.footerLink {
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  color: var(--color-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.footerLink:hover {
+  color: var(--color-foreground);
 }
 
 .form {

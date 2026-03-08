@@ -1,0 +1,57 @@
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-6);
+  background-color: var(--color-primary-700);
+  color: #ffffff;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  animation: breathe 2s ease-in-out infinite, slideDown 300ms ease-out;
+}
+
+.message {
+  flex: 1;
+}
+
+.ackButton {
+  flex-shrink: 0;
+  margin-left: var(--space-4);
+  padding: var(--space-1) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-sans);
+  color: var(--color-primary-700);
+  background-color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.ackButton:hover {
+  background-color: var(--color-primary-100);
+}
+
+@keyframes breathe {
+  0%, 100% {
+    background-color: #b01a56;
+  }
+  50% {
+    background-color: #ff69b4;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

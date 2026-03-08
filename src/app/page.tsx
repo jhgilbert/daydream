@@ -1,4 +1,5 @@
 import { auth, signIn, signOut } from "@/auth";
+import { TestNotificationButton } from "@/components/TestNotificationButton";
 import styles from "./page.module.css";
 
 export default async function Home() {
@@ -6,19 +7,26 @@ export default async function Home() {
 
   if (session?.user) {
     return (
-      <main className={styles.main}>
-        <p className={styles.status}>Signed in as {session.user.email}</p>
-        <form
-          action={async () => {
-            "use server";
-            await signOut();
-          }}
-        >
-          <button type="submit" className={styles.button}>
-            Sign out
-          </button>
-        </form>
-      </main>
+      <>
+        <main className={styles.main}>
+          <TestNotificationButton className={styles.button} />
+        </main>
+        <footer className={styles.footer}>
+          <span className={styles.footerStatus}>
+            Signed in as {session.user.email}
+          </span>
+          <form
+            action={async () => {
+              "use server";
+              await signOut();
+            }}
+          >
+            <button type="submit" className={styles.footerLink}>
+              Sign out
+            </button>
+          </form>
+        </footer>
+      </>
     );
   }
 
@@ -43,6 +51,7 @@ export default async function Home() {
           Send magic link
         </button>
       </form>
+      <TestNotificationButton className={styles.button} />
     </main>
   );
 }
