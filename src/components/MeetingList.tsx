@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSlashCommands } from "./SlashCommandProvider";
+import { playChime } from "./NotificationProvider";
 import styles from "./MeetingList.module.css";
 
 function formatTime(date: Date): string {
@@ -44,10 +45,27 @@ export function MeetingList() {
   const { meetings, removeMeeting } = useSlashCommands();
   const [now, setNow] = useState(() => new Date());
 
+  // Track which meetings have already chimed for breathing state
+  const chimedBreathingRef = useRef<Set<number>>(new Set());
+
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(interval);
   }, []);
+
+  // Play chime when a meeting first enters breathing state (within 10 min)
+  useEffect(() => {
+    let shouldChime = false;
+    for (const meeting of meetings) {
+      const msUntilStart = meeting.startTime.getTime() - now.getTime();
+      const isBreathing = msUntilStart > 0 && msUntilStart <= 10 * 60_000;
+      if (isBreathing && !chimedBreathingRef.current.has(meeting.id)) {
+        chimedBreathingRef.current.add(meeting.id);
+        shouldChime = true;
+      }
+    }
+    if (shouldChime) playChime();
+  }, [now, meetings]);
 
   // Remove ended meetings
   useEffect(() => {

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { useSlashCommands } from "./SlashCommandProvider";
+import { playChime } from "./NotificationProvider";
 import styles from "./TodoList.module.css";
 
 function formatCountdown(ms: number): string {
@@ -37,11 +38,28 @@ export function TodoList() {
     [toggleTodo],
   );
 
+  // Track which todos have already chimed for overdue state
+  const chimedOverdueRef = useRef<Set<number>>(new Set());
+
   // Tick every 30s so countdowns update
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(interval);
   }, []);
+
+  // Play chime when a todo first becomes overdue
+  useEffect(() => {
+    let shouldChime = false;
+    for (const todo of todos) {
+      if (todo.done || todo.deleted || !todo.deadline) continue;
+      const msLeft = new Date(todo.deadline).getTime() - now.getTime();
+      if (msLeft < 0 && !chimedOverdueRef.current.has(todo.id)) {
+        chimedOverdueRef.current.add(todo.id);
+        shouldChime = true;
+      }
+    }
+    if (shouldChime) playChime();
+  }, [now, todos]);
 
   const visibleTodos = todos.filter((t) => !t.deleted);
   const sortedTodos = [...visibleTodos].sort((a, b) => {
