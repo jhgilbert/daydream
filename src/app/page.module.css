@@ -3,6 +3,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--space-4);
   min-height: 100vh;
   padding: var(--space-8);
 }
@@ -17,7 +18,6 @@
 .status {
   font-size: var(--text-lg);
   color: var(--color-muted);
-  margin-bottom: var(--space-6);
 }
 
 .form {
