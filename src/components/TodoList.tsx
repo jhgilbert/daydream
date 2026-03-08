@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import confetti from "canvas-confetti";
 import { useSlashCommands } from "./SlashCommandProvider";
 import styles from "./TodoList.module.css";
 
@@ -21,6 +22,20 @@ function formatCountdown(ms: number): string {
 export function TodoList() {
   const { todos, toggleTodo } = useSlashCommands();
   const [now, setNow] = useState(() => new Date());
+
+  const handleToggle = useCallback(
+    (id: number, currentlyDone: boolean) => {
+      toggleTodo(id);
+      if (!currentlyDone) {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      }
+    },
+    [toggleTodo],
+  );
 
   // Tick every 30s so countdowns update
   useEffect(() => {
@@ -79,7 +94,7 @@ export function TodoList() {
                   <input
                     type="checkbox"
                     checked={todo.done}
-                    onChange={() => toggleTodo(todo.id)}
+                    onChange={() => handleToggle(todo.id, todo.done)}
                     className={styles.checkbox}
                   />
                   <span
