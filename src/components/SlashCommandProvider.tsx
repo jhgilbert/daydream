@@ -20,6 +20,7 @@ export interface TodoItem {
   priority: number;
   sortOrder: number;
   deadline?: string;
+  completedAt?: string;
 }
 
 export interface Meeting {
@@ -378,9 +379,10 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       if (!todo) return;
 
       const newDone = !todo.done;
+      const completedAt = newDone ? new Date().toISOString() : undefined;
       // Optimistic update
       setTodos((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, done: newDone } : t))
+        prev.map((t) => (t.id === id ? { ...t, done: newDone, completedAt } : t))
       );
 
       try {
@@ -393,7 +395,7 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       } catch {
         // Revert on failure
         setTodos((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, done: !newDone } : t))
+          prev.map((t) => (t.id === id ? { ...t, done: !newDone, completedAt: todo.completedAt } : t))
         );
         notify("Failed to update todo");
       }

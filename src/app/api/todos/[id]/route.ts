@@ -14,7 +14,10 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
   const data: Record<string, unknown> = {};
-  if (typeof body.done === "boolean") data.done = body.done;
+  if (typeof body.done === "boolean") {
+    data.done = body.done;
+    data.completedAt = body.done ? new Date() : null;
+  }
   if (typeof body.priority === "number") data.priority = body.priority;
   if (typeof body.blocked === "boolean") data.blocked = body.blocked;
   if (typeof body.deleted === "boolean") data.deleted = body.deleted;

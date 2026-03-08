@@ -20,9 +20,9 @@ function formatCountdown(ms: number): string {
   return `${minutes}m left`;
 }
 
-/** Priority bucket rank: P0 (0) → queen (1) → regular P1 (2) */
+/** Priority bucket rank: P0 (0) → queen (1) → regular P1 (2) → completed (3) */
 const sortRank = (t: TodoItem) =>
-  t.priority === 0 ? 0 : t.queen ? 1 : 2;
+  t.done ? 3 : t.priority === 0 ? 0 : t.queen ? 1 : 2;
 
 export function TodoList() {
   const { todos, toggleTodo, reorderTodos } = useSlashCommands();
@@ -75,6 +75,12 @@ export function TodoList() {
     const ra = sortRank(a);
     const rb = sortRank(b);
     if (ra !== rb) return ra - rb;
+    // Completed bucket: most recently completed first
+    if (ra === 3) {
+      const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+      const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+      return bTime - aTime;
+    }
     // Within the same rank, sort by sortOrder then createdAt
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
     const aHas = a.deadline ? 0 : 1;
@@ -140,8 +146,8 @@ export function TodoList() {
   if (sortedTodos.length === 0) return null;
 
   // Divider goes between queen/P0 tasks and regular P1 tasks
-  const hasAboveFold = sortedTodos.some((t) => t.priority === 0 || t.queen);
-  const hasBelowFold = sortedTodos.some((t) => t.priority !== 0 && !t.queen);
+  const hasAboveFold = sortedTodos.some((t) => !t.done && (t.priority === 0 || t.queen));
+  const hasBelowFold = sortedTodos.some((t) => !t.done && t.priority !== 0 && !t.queen);
   const showDivider = hasAboveFold && hasBelowFold;
 
   const isDragging = dragId !== null;
@@ -187,7 +193,7 @@ export function TodoList() {
                 )}
               <li
                 className={itemClasses}
-                draggable
+                draggable={!todo.done}
                 onDragStart={(e) => handleDragStart(e, todo)}
                 onDragOver={(e) => handleDragOver(e, todo)}
                 onDrop={(e) => handleDrop(e, todo)}
