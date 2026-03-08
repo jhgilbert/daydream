@@ -185,7 +185,7 @@ All values reference `var(--…)` design tokens from `theme.css`.
 
 | Scenario | Behavior |
 |----------|----------|
-| User enters a time already past (meeting ended) | Meeting is silently skipped (already ended) |
+| User enters a time already past (meeting ended) | Scheduled for the next business day (skips weekends) — row shows a day prefix like "Mon" |
 | User enters a meeting currently in progress | Added with IN PROGRESS badge; no breathing |
 | User enters a meeting less than 10 min away | Added with breathing animation already active |
 | User runs `/meetings` multiple times | Meetings append to the list; duplicates are the user's responsibility |

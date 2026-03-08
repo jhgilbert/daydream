@@ -50,24 +50,33 @@ export function useSlashCommands() {
 }
 
 /**
- * Build a Date for today in America/Chicago at the given hour/minute.
+ * Get today's date components in America/Chicago timezone.
  */
-function buildChicagoDate(hour: number, minute: number): Date {
-  // Get today's date components in Chicago timezone
-  const now = new Date();
+function getChicagoToday(): { year: number; month: number; day: number } {
   const chicagoFormatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
-  const parts = chicagoFormatter.formatToParts(now);
-  const year = Number(parts.find((p) => p.type === "year")!.value);
-  const month = Number(parts.find((p) => p.type === "month")!.value);
-  const day = Number(parts.find((p) => p.type === "day")!.value);
+  const parts = chicagoFormatter.formatToParts(new Date());
+  return {
+    year: Number(parts.find((p) => p.type === "year")!.value),
+    month: Number(parts.find((p) => p.type === "month")!.value),
+    day: Number(parts.find((p) => p.type === "day")!.value),
+  };
+}
 
-  // Build an ISO-ish string and use the Chicago offset to get a correct UTC Date.
-  // Create a temporary date in UTC with those components, then adjust.
+/**
+ * Build a Date in America/Chicago at the given year/month/day/hour/minute.
+ */
+function buildChicagoDate(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number
+): Date {
   const tempUtc = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
 
   // Figure out the Chicago offset at that moment by comparing formatted time
@@ -85,11 +94,46 @@ function buildChicagoDate(hour: number, minute: number): Date {
     chicagoTime.find((p) => p.type === "minute")!.value
   );
 
-  // The offset is the difference between what we wanted (hour:minute in Chicago)
-  // and what the UTC date shows in Chicago
   const offsetMs =
     (chicagoHour * 60 + chicagoMin - (hour * 60 + minute)) * 60 * 1000;
   return new Date(tempUtc - offsetMs);
+}
+
+/**
+ * Get the day-of-week (0=Sun … 6=Sat) for a date in America/Chicago.
+ */
+function getChicagoDayOfWeek(date: Date): number {
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    weekday: "short",
+  }).format(date);
+  const dayMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  return dayMap[formatted] ?? 0;
+}
+
+/**
+ * Advance a date by N calendar days (preserving time-of-day in Chicago).
+ */
+function addDays(
+  year: number,
+  month: number,
+  day: number,
+  days: number
+): { year: number; month: number; day: number } {
+  const d = new Date(year, month - 1, day + days);
+  return {
+    year: d.getFullYear(),
+    month: d.getMonth() + 1,
+    day: d.getDate(),
+  };
 }
 
 function parseMeetings(input: string): Meeting[] | null {
@@ -122,11 +166,23 @@ function parseMeetings(input: string): Meeting[] | null {
     if (!durMatch) return null;
     const durationMin = Number(durMatch[1]);
 
-    const startTime = buildChicagoDate(hour, minute);
-    const endTime = new Date(startTime.getTime() + durationMin * 60 * 1000);
+    // Start with today in Chicago; if the meeting has already ended, advance
+    // to the next business day (skip weekends).
+    let { year, month, day } = getChicagoToday();
+    let startTime = buildChicagoDate(year, month, day, hour, minute);
+    let endTime = new Date(startTime.getTime() + durationMin * 60 * 1000);
 
-    // Skip meetings that have already ended
-    if (endTime <= now) continue;
+    if (endTime <= now) {
+      // Meeting already passed today — advance to next business day
+      let daysToAdd = 1;
+      const todayDow = getChicagoDayOfWeek(now);
+      if (todayDow === 5) daysToAdd = 3; // Friday → Monday
+      else if (todayDow === 6) daysToAdd = 2; // Saturday → Monday
+
+      ({ year, month, day } = addDays(year, month, day, daysToAdd));
+      startTime = buildChicagoDate(year, month, day, hour, minute);
+      endTime = new Date(startTime.getTime() + durationMin * 60 * 1000);
+    }
 
     const label = labelWords.join(" ") || undefined;
     meetings.push({ id: crypto.randomUUID(), label, startTime, endTime });

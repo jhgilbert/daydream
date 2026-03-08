@@ -13,6 +13,23 @@ function formatTime(date: Date): string {
   });
 }
 
+function isToday(date: Date): boolean {
+  const chicagoFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return chicagoFormatter.format(date) === chicagoFormatter.format(new Date());
+}
+
+function formatDayPrefix(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    weekday: "short",
+  }).format(date);
+}
+
 function formatCountdown(ms: number): string {
   const totalMinutes = Math.ceil(ms / 60_000);
   if (totalMinutes < 1) return "Less than a minute";
@@ -64,6 +81,7 @@ export function MeetingList() {
             <li key={meeting.id} className={itemClasses}>
               <div className={styles.left}>
                 <span className={isBreathing ? styles.timeRangeUrgent : styles.timeRange}>
+                  {!isToday(meeting.startTime) && `${formatDayPrefix(meeting.startTime)} `}
                   {formatTime(meeting.startTime)} – {formatTime(meeting.endTime)}
                 </span>
                 {meeting.label && (
