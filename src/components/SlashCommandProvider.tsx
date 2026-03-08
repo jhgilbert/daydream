@@ -15,6 +15,7 @@ export interface TodoItem {
   text: string;
   done: boolean;
   deleted: boolean;
+  blocked: boolean;
   priority: number;
   deadline?: string;
 }
@@ -39,6 +40,8 @@ export interface SlashCommand {
   execute: (args: string) => void;
   /** When true, show numbered task list as context when this command is active */
   showTaskReference?: boolean;
+  /** Optional filter for which tasks to show in the task reference panel */
+  filterTaskReference?: (todo: TodoItem) => boolean;
   /** When provided, entering the command with no args starts an interactive flow */
   interactivePrompts?: InteractivePrompt[];
   /** Called with collected answers from the interactive flow */
@@ -489,6 +492,63 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     [todos, notify]
   );
 
+  const setBlocked = useCallback(
+    async (args: string, blocked: boolean) => {
+      const nums = args
+        .split(/[\s,]+/)
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n));
+      if (nums.length === 0) {
+        notify(`Usage: /${blocked ? "blocked" : "unblocked"} 1, 2, 5`);
+        return;
+      }
+
+      const eligible = todos.filter((t) => !t.deleted && t.blocked !== blocked);
+      const targets: TodoItem[] = [];
+      for (const num of nums) {
+        const todo = eligible[num - 1];
+        if (!todo) {
+          notify(`Task #${num} does not exist`);
+          return;
+        }
+        targets.push(todo);
+      }
+
+      // Optimistic update
+      setTodos((prev) =>
+        prev.map((t) =>
+          targets.some((tgt) => tgt.id === t.id)
+            ? { ...t, blocked }
+            : t
+        )
+      );
+
+      try {
+        await Promise.all(
+          targets.map((t) =>
+            fetch(`/api/todos/${t.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ blocked }),
+            }).then((res) => {
+              if (!res.ok) throw new Error();
+            })
+          )
+        );
+      } catch {
+        // Revert on failure
+        setTodos((prev) =>
+          prev.map((t) => {
+            const original = targets.find((tgt) => tgt.id === t.id);
+            return original ? { ...t, blocked: original.blocked } : t;
+          })
+        );
+        notify("Failed to update blocked status");
+      }
+    },
+    [todos, notify]
+  );
+
   const commands: SlashCommand[] = [
     {
       name: "todo",
@@ -533,6 +593,22 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       argPlaceholder: "1, 2, 5",
       execute: (args) => setPriority(args, 1),
       showTaskReference: true,
+    },
+    {
+      name: "blocked",
+      description: "Mark tasks as blocked",
+      argPlaceholder: "1, 2, 5",
+      execute: (args) => setBlocked(args, true),
+      showTaskReference: true,
+      filterTaskReference: (t) => !t.blocked,
+    },
+    {
+      name: "unblocked",
+      description: "Mark tasks as unblocked",
+      argPlaceholder: "1, 2, 5",
+      execute: (args) => setBlocked(args, false),
+      showTaskReference: true,
+      filterTaskReference: (t) => t.blocked,
     },
   ];
 

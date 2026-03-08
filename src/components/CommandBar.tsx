@@ -27,7 +27,10 @@ export function CommandBar() {
   const matchedCommand = parseCommand(value, commands);
   const filteredCommands = getFilteredCommands(value, commands);
   const visibleTodos = todos.filter((t) => !t.deleted);
-  const showTaskRef = matchedCommand?.showTaskReference && visibleTodos.length > 0;
+  const refTodos = matchedCommand?.filterTaskReference
+    ? visibleTodos.filter(matchedCommand.filterTaskReference)
+    : visibleTodos;
+  const showTaskRef = matchedCommand?.showTaskReference && refTodos.length > 0;
 
   // Show suggestions when input starts with /
   useEffect(() => {
@@ -193,7 +196,7 @@ export function CommandBar() {
       )}
       {showTaskRef && (
         <ul className={styles.taskReference}>
-          {visibleTodos.map((todo, i) => (
+          {refTodos.map((todo, i) => (
             <li key={todo.id} className={styles.taskRefItem}>
               <span className={styles.taskRefNumber}>{i + 1}</span>
               <span className={todo.done ? styles.taskRefTextDone : styles.taskRefText}>{todo.text}</span>

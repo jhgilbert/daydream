@@ -121,11 +121,16 @@ export function TodoList() {
                         ? styles.textDone
                         : isOverdue
                           ? styles.textOverdue
-                          : styles.text
+                          : todo.blocked
+                            ? styles.textBlocked
+                            : styles.text
                     }
                   >
                     {todo.text}
                   </span>
+                  {todo.blocked && !todo.done && (
+                    <span className={styles.blockedBadge}>blocked</span>
+                  )}
                 </label>
                 {deadline && msUntilDeadline !== null && !todo.done && (
                   <span

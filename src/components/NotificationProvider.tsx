@@ -13,7 +13,9 @@ interface NotificationContextValue {
   notify: (message: string) => void;
 }
 
-const NotificationContext = createContext<NotificationContextValue | null>(null);
+const NotificationContext = createContext<NotificationContextValue | null>(
+  null,
+);
 
 export function useNotification() {
   const ctx = useContext(NotificationContext);
@@ -39,8 +41,8 @@ export function playChime() {
       osc.type = "sine";
       osc.frequency.value = freq;
       const start = now + i * noteDuration;
-      gain.gain.setValueAtTime(0.3, start);
-      gain.gain.setValueAtTime(0.3, start + noteDuration * 0.8);
+      gain.gain.setValueAtTime(0.1, start);
+      gain.gain.setValueAtTime(0.1, start + noteDuration * 0.8);
       gain.gain.exponentialRampToValueAtTime(
         0.001,
         start + noteDuration + fadeOut,
