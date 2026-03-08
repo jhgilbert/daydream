@@ -2,11 +2,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: var(--space-4);
   min-height: 100vh;
   padding: var(--space-8);
-  padding-bottom: calc(var(--space-16) + var(--space-8));
+  padding-bottom: calc(var(--space-16) + var(--space-16));
+}
+
+.mainCentered {
+  composes: main;
+  justify-content: center;
 }
 
 .title {
@@ -18,9 +22,10 @@
 
 .footer {
   position: fixed;
-  bottom: 3.25rem;
+  bottom: 0;
   left: 0;
   right: 0;
+  z-index: 910;
   display: flex;
   align-items: center;
   justify-content: center;

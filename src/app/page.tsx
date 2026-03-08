@@ -35,7 +35,7 @@ export default async function Home() {
   }
 
   return (
-    <main className={styles.main}>
+    <main className={styles.mainCentered}>
       <h1 className={styles.title}>Sign in</h1>
       <form
         action={async (formData) => {

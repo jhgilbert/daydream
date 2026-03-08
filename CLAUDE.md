@@ -1,5 +1,7 @@
 # Daydream — Project Guide
 
+Daydream is a single-page productivity app; all of its features live on the main page.
+
 ## Package manager
 
 Use **yarn** for all commands. Do not use npm.
@@ -52,6 +54,7 @@ src/
 ## Environment variables
 
 Required in `.env.local` for local dev:
+
 - `POSTGRES_PRISMA_URL` — PostgreSQL connection string
 - `AUTH_SECRET` — auth token signing secret
 - `AUTH_RESEND_KEY` — Resend API key
