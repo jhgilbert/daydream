@@ -6,7 +6,7 @@ import styles from "./ProjectList.module.css";
 
 export function ProjectList() {
   const { projects, reorderProjects } = useSlashCommands();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const dragNode = useRef<HTMLLIElement | null>(null);

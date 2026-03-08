@@ -16,6 +16,7 @@ export interface TodoItem {
   done: boolean;
   deleted: boolean;
   blocked: boolean;
+  queen: boolean;
   priority: number;
   deadline?: string;
 }
@@ -309,11 +310,15 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addTodo = useCallback(
-    async (text: string, deadline?: Date) => {
+    async (text: string, deadline?: Date, queen?: boolean) => {
       const trimmed = text.trim();
       if (!trimmed) return;
 
       const body: Record<string, unknown> = { text: trimmed };
+      if (queen) {
+        body.queen = true;
+        body.priority = 1; // queen tasks are p1
+      }
       if (deadline) {
         body.deadline = deadline.toISOString();
         body.priority = 0; // deadline tasks are automatically p0
@@ -619,6 +624,24 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       executeInteractive: (answers) => {
         const deadline = parseDeadline(answers.deadline);
         addTodo(answers.text, deadline ?? undefined);
+      },
+    },
+    {
+      name: "queen",
+      description: "Add a high-priority queen task",
+      argPlaceholder: "What needs to be done?",
+      execute: (args) => addTodo(args, undefined, true),
+      interactivePrompts: [
+        { key: "text", question: "What do you want to do?", required: true },
+        {
+          key: "deadline",
+          question: "When do you want to do it?",
+          required: false,
+        },
+      ],
+      executeInteractive: (answers) => {
+        const deadline = parseDeadline(answers.deadline);
+        addTodo(answers.text, deadline ?? undefined, true);
       },
     },
     {

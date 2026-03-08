@@ -62,10 +62,14 @@ export function TodoList() {
   }, [now, todos]);
 
   const visibleTodos = todos.filter((t) => !t.deleted);
+  // Sort rank: P0 (0) → queen (1) → regular P1 (2)
+  const sortRank = (t: typeof visibleTodos[number]) =>
+    t.priority === 0 ? 0 : t.queen ? 1 : 2;
   const sortedTodos = [...visibleTodos].sort((a, b) => {
-    // Sort by priority first
-    if (a.priority !== b.priority) return a.priority - b.priority;
-    // Within the same priority, deadline tasks come before non-deadline tasks
+    const ra = sortRank(a);
+    const rb = sortRank(b);
+    if (ra !== rb) return ra - rb;
+    // Within the same rank, deadline tasks come before non-deadline tasks
     const aHas = a.deadline ? 0 : 1;
     const bHas = b.deadline ? 0 : 1;
     return aHas - bHas;
@@ -73,9 +77,10 @@ export function TodoList() {
 
   if (sortedTodos.length === 0) return null;
 
-  const hasP0 = sortedTodos.some((t) => t.priority === 0);
-  const hasP1 = sortedTodos.some((t) => t.priority === 1);
-  const showDivider = hasP0 && hasP1;
+  // Divider goes between queen/P0 tasks and regular P1 tasks
+  const hasAboveFold = sortedTodos.some((t) => t.priority === 0 || t.queen);
+  const hasBelowFold = sortedTodos.some((t) => t.priority !== 0 && !t.queen);
+  const showDivider = hasAboveFold && hasBelowFold;
 
   return (
     <section className={styles.container}>
@@ -103,8 +108,8 @@ export function TodoList() {
             <React.Fragment key={todo.id}>
               {showDivider &&
                 i > 0 &&
-                todo.priority === 1 &&
-                sortedTodos[i - 1].priority === 0 && (
+                sortRank(todo) === 2 &&
+                sortRank(sortedTodos[i - 1]) < 2 && (
                   <li key="divider" className={styles.divider} aria-hidden />
                 )}
               <li className={itemClasses}>
@@ -126,7 +131,7 @@ export function TodoList() {
                             : styles.text
                     }
                   >
-                    {todo.text}
+                    {todo.queen && "👑 "}{todo.text}
                   </span>
                   {todo.blocked && !todo.done && (
                     <span className={styles.blockedBadge}>blocked</span>

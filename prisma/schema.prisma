@@ -27,6 +27,7 @@ model Todo {
   done      Boolean   @default(false)
   deleted   Boolean   @default(false)
   blocked   Boolean   @default(false)
+  queen     Boolean   @default(false)
   priority  Int       @default(1)
   deadline  DateTime?
   userId    String

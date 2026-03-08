@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { text, deadline, priority } = await request.json();
+  const { text, deadline, priority, queen } = await request.json();
   if (!text || typeof text !== "string") {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
   }
@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       userId: session.user.id,
       ...(typeof deadline === "string" && { deadline: new Date(deadline) }),
       ...(typeof priority === "number" && { priority }),
+      ...(queen === true && { queen: true }),
     },
   });
 
