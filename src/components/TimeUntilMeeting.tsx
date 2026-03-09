@@ -28,11 +28,16 @@ export function TimeUntilMeeting() {
     .filter((m) => m.startTime.getTime() > now.getTime())
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0];
 
-  // Fall back to EOD time when no upcoming meetings
-  const targetTime = nextMeeting
-    ? nextMeeting.startTime.getTime()
-    : eodTime && eodTime.getTime() > now.getTime()
-      ? eodTime.getTime()
+  const eodIsActive = eodTime && eodTime.getTime() > now.getTime();
+  const eodIsBeforeNextMeeting =
+    eodIsActive && (!nextMeeting || eodTime.getTime() <= nextMeeting.startTime.getTime());
+
+  // Show EOD countdown when it's before the next meeting;
+  // once EOD passes, show the next meeting countdown
+  const targetTime = eodIsBeforeNextMeeting
+    ? eodTime.getTime()
+    : nextMeeting
+      ? nextMeeting.startTime.getTime()
       : null;
 
   if (!targetTime) return null;
