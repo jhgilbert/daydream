@@ -608,25 +608,21 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
 
   const setPriority = useCallback(
     async (args: string, priority: number) => {
-      const nums = args
-        .split(/[\s,]+/)
-        .map((s) => parseInt(s.trim(), 10))
-        .filter((n) => !isNaN(n));
-      if (nums.length === 0) {
-        notify(`Usage: /p${priority} 1, 2, 5`);
+      const query = args.trim().toLowerCase();
+      if (!query) {
+        notify(`Usage: /p${priority} <task description>`);
         return;
       }
 
       const activeTodos = todos.filter((t) => !t.deleted);
-      const targets: TodoItem[] = [];
-      for (const num of nums) {
-        const todo = activeTodos[num - 1];
-        if (!todo) {
-          notify(`Task #${num} does not exist`);
-          return;
-        }
-        targets.push(todo);
+      const target = activeTodos.find(
+        (t) => t.text.toLowerCase() === query
+      );
+      if (!target) {
+        notify("No matching task found");
+        return;
       }
+      const targets = [target];
 
       // Optimistic update
       setTodos((prev) =>
@@ -772,6 +768,36 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     [todos, meetings, projects, notify]
   );
 
+  const getP0Suggestions = useCallback(
+    (input: string): ArgSuggestion[] => {
+      const query = input.toLowerCase();
+      const results: ArgSuggestion[] = [];
+      for (const t of todos) {
+        if (t.deleted || t.priority === 0) continue;
+        if (!query || t.text.toLowerCase().includes(query)) {
+          results.push({ label: t.text, value: t.text });
+        }
+      }
+      return results;
+    },
+    [todos]
+  );
+
+  const getP1Suggestions = useCallback(
+    (input: string): ArgSuggestion[] => {
+      const query = input.toLowerCase();
+      const results: ArgSuggestion[] = [];
+      for (const t of todos) {
+        if (t.deleted || t.priority !== 0) continue;
+        if (!query || t.text.toLowerCase().includes(query)) {
+          results.push({ label: t.text, value: t.text });
+        }
+      }
+      return results;
+    },
+    [todos]
+  );
+
   const getDeleteSuggestions = useCallback(
     (input: string): ArgSuggestion[] => {
       const query = input.toLowerCase();
@@ -852,16 +878,16 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     {
       name: "p0",
       description: "Mark tasks as highest priority",
-      argPlaceholder: "1, 2, 5",
+      argPlaceholder: "Start typing to search...",
       execute: (args) => setPriority(args, 0),
-      showTaskReference: true,
+      getArgSuggestions: getP0Suggestions,
     },
     {
       name: "p1",
       description: "Revert tasks to normal priority",
-      argPlaceholder: "1, 2, 5",
+      argPlaceholder: "Start typing to search...",
       execute: (args) => setPriority(args, 1),
-      showTaskReference: true,
+      getArgSuggestions: getP1Suggestions,
     },
     {
       name: "blocked",
