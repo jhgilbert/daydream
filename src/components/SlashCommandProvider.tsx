@@ -661,25 +661,21 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
 
   const setBlocked = useCallback(
     async (args: string, blocked: boolean) => {
-      const nums = args
-        .split(/[\s,]+/)
-        .map((s) => parseInt(s.trim(), 10))
-        .filter((n) => !isNaN(n));
-      if (nums.length === 0) {
-        notify(`Usage: /${blocked ? "blocked" : "unblocked"} 1, 2, 5`);
+      const query = args.trim().toLowerCase();
+      if (!query) {
+        notify(`Usage: /${blocked ? "blocked" : "unblocked"} <task description>`);
         return;
       }
 
-      const eligible = todos.filter((t) => !t.deleted && t.blocked !== blocked);
-      const targets: TodoItem[] = [];
-      for (const num of nums) {
-        const todo = eligible[num - 1];
-        if (!todo) {
-          notify(`Task #${num} does not exist`);
-          return;
-        }
-        targets.push(todo);
+      const activeTodos = todos.filter((t) => !t.deleted);
+      const target = activeTodos.find(
+        (t) => t.text.toLowerCase() === query
+      );
+      if (!target) {
+        notify("No matching task found");
+        return;
       }
+      const targets = [target];
 
       // Optimistic update
       setTodos((prev) =>
@@ -798,6 +794,36 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     [todos]
   );
 
+  const getBlockedSuggestions = useCallback(
+    (input: string): ArgSuggestion[] => {
+      const query = input.toLowerCase();
+      const results: ArgSuggestion[] = [];
+      for (const t of todos) {
+        if (t.deleted || t.blocked) continue;
+        if (!query || t.text.toLowerCase().includes(query)) {
+          results.push({ label: t.text, value: t.text });
+        }
+      }
+      return results;
+    },
+    [todos]
+  );
+
+  const getUnblockedSuggestions = useCallback(
+    (input: string): ArgSuggestion[] => {
+      const query = input.toLowerCase();
+      const results: ArgSuggestion[] = [];
+      for (const t of todos) {
+        if (t.deleted || !t.blocked) continue;
+        if (!query || t.text.toLowerCase().includes(query)) {
+          results.push({ label: t.text, value: t.text });
+        }
+      }
+      return results;
+    },
+    [todos]
+  );
+
   const getDeleteSuggestions = useCallback(
     (input: string): ArgSuggestion[] => {
       const query = input.toLowerCase();
@@ -892,18 +918,16 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     {
       name: "blocked",
       description: "Mark tasks as blocked",
-      argPlaceholder: "1, 2, 5",
+      argPlaceholder: "Start typing to search...",
       execute: (args) => setBlocked(args, true),
-      showTaskReference: true,
-      filterTaskReference: (t) => !t.blocked,
+      getArgSuggestions: getBlockedSuggestions,
     },
     {
       name: "unblocked",
       description: "Mark tasks as unblocked",
-      argPlaceholder: "1, 2, 5",
+      argPlaceholder: "Start typing to search...",
       execute: (args) => setBlocked(args, false),
-      showTaskReference: true,
-      filterTaskReference: (t) => t.blocked,
+      getArgSuggestions: getUnblockedSuggestions,
     },
     {
       name: "project",
