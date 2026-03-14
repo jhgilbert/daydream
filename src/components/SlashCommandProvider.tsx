@@ -21,6 +21,7 @@ export interface TodoItem {
   sortOrder: number;
   deadline?: string;
   completedAt?: string;
+  notes?: string;
 }
 
 export interface Meeting {
@@ -66,6 +67,7 @@ export interface SlashCommand {
 interface SlashCommandContextValue {
   todos: TodoItem[];
   toggleTodo: (id: string) => void;
+  updateTodoNotes: (id: string, notes: string) => Promise<boolean>;
   reorderTodos: (orderedIds: string[]) => void;
   meetings: Meeting[];
   removeMeeting: (id: string) => void;
@@ -450,6 +452,34 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       }
     },
     []
+  );
+
+  const updateTodoNotes = useCallback(
+    async (id: string, notes: string): Promise<boolean> => {
+      // Optimistic update
+      const prev = todos.find((t) => t.id === id);
+      setTodos((list) =>
+        list.map((t) => (t.id === id ? { ...t, notes } : t))
+      );
+
+      try {
+        const res = await fetch(`/api/todos/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes }),
+        });
+        if (!res.ok) throw new Error();
+        return true;
+      } catch {
+        // Revert on failure
+        setTodos((list) =>
+          list.map((t) => (t.id === id ? { ...t, notes: prev?.notes } : t))
+        );
+        notify("Failed to save notes");
+        return false;
+      }
+    },
+    [todos, notify]
   );
 
   const reorderTodos = useCallback(
@@ -952,7 +982,7 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
 
   return (
     <SlashCommandContext.Provider
-      value={{ todos, toggleTodo, reorderTodos, meetings, removeMeeting, eodTime, projects, reorderProjects, commands }}
+      value={{ todos, toggleTodo, updateTodoNotes, reorderTodos, meetings, removeMeeting, eodTime, projects, reorderProjects, commands }}
     >
       {children}
     </SlashCommandContext.Provider>

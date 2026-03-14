@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { useSlashCommands, type TodoItem } from "./SlashCommandProvider";
 import { playChime } from "./NotificationProvider";
+import { NoteEditor, isNoteEmpty } from "./NoteEditor";
 import styles from "./TodoList.module.css";
 
 function formatCountdown(ms: number): string {
@@ -25,8 +26,13 @@ const sortRank = (t: TodoItem) =>
   t.done ? 3 : t.priority === 0 ? 0 : t.queen ? 1 : 2;
 
 export function TodoList() {
-  const { todos, toggleTodo, reorderTodos } = useSlashCommands();
+  const { todos, toggleTodo, updateTodoNotes, reorderTodos } = useSlashCommands();
   const [now, setNow] = useState(() => new Date());
+
+  // Accordion: which todo's notes are expanded
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Track whether the editor has unsaved changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Drag-and-drop state
   const [dragId, setDragId] = useState<string | null>(null);
@@ -46,6 +52,39 @@ export function TodoList() {
     },
     [toggleTodo],
   );
+
+  const handleTextClick = useCallback(
+    (id: string) => {
+      if (expandedId === id) {
+        // Only collapse if no unsaved changes
+        if (!hasUnsavedChanges) {
+          setExpandedId(null);
+        }
+      } else {
+        // Don't switch if current editor has unsaved changes
+        if (!hasUnsavedChanges) {
+          setExpandedId(id);
+        }
+      }
+    },
+    [expandedId, hasUnsavedChanges]
+  );
+
+  const handleNoteSave = useCallback(
+    async (id: string, html: string) => {
+      const success = await updateTodoNotes(id, html);
+      if (success) {
+        setExpandedId(null);
+        setHasUnsavedChanges(false);
+      }
+    },
+    [updateTodoNotes]
+  );
+
+  const handleNoteCancel = useCallback(() => {
+    setExpandedId(null);
+    setHasUnsavedChanges(false);
+  }, []);
 
   // Track which todos have already chimed for overdue state
   const chimedOverdueRef = useRef<Set<string>>(new Set());
@@ -199,38 +238,56 @@ export function TodoList() {
                 onDrop={(e) => handleDrop(e, todo)}
                 onDragEnd={handleDragEnd}
               >
-                <label className={styles.label}>
-                  <input
-                    type="checkbox"
-                    checked={todo.done}
-                    onChange={() => handleToggle(todo.id, todo.done)}
-                    className={styles.checkbox}
-                  />
-                  <span
-                    className={
-                      todo.done
-                        ? styles.textDone
-                        : isOverdue
-                          ? styles.textOverdue
-                          : todo.blocked
-                            ? styles.textBlocked
-                            : styles.text
-                    }
-                  >
-                    {todo.queen && "👑 "}{todo.text}
-                  </span>
-                  {todo.blocked && !todo.done && (
-                    <span className={styles.blockedBadge}>blocked</span>
+                <div className={styles.row}>
+                  <div className={styles.label}>
+                    <input
+                      type="checkbox"
+                      checked={todo.done}
+                      onChange={() => handleToggle(todo.id, todo.done)}
+                      className={styles.checkbox}
+                    />
+                    <span
+                      className={[
+                        todo.done
+                          ? styles.textDone
+                          : isOverdue
+                            ? styles.textOverdue
+                            : todo.blocked
+                              ? styles.textBlocked
+                              : styles.text,
+                        styles.textClickable,
+                      ].join(" ")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTextClick(todo.id);
+                      }}
+                    >
+                      {todo.queen && "👑 "}{todo.text}
+                      {!isNoteEmpty(todo.notes) && (
+                        <span className={styles.noteIndicator}>📝</span>
+                      )}
+                    </span>
+                    {todo.blocked && !todo.done && (
+                      <span className={styles.blockedBadge}>blocked</span>
+                    )}
+                  </div>
+                  {deadline && msUntilDeadline !== null && !todo.done && (
+                    <span
+                      className={
+                        isOverdue ? styles.countdownOverdue : styles.countdown
+                      }
+                    >
+                      {formatCountdown(msUntilDeadline)}
+                    </span>
                   )}
-                </label>
-                {deadline && msUntilDeadline !== null && !todo.done && (
-                  <span
-                    className={
-                      isOverdue ? styles.countdownOverdue : styles.countdown
-                    }
-                  >
-                    {formatCountdown(msUntilDeadline)}
-                  </span>
+                </div>
+                {expandedId === todo.id && (
+                  <NoteEditor
+                    initialValue={todo.notes ?? ""}
+                    onSave={(html) => handleNoteSave(todo.id, html)}
+                    onCancel={handleNoteCancel}
+                    onDirtyChange={setHasUnsavedChanges}
+                  />
                 )}
               </li>
             </React.Fragment>

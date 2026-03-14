@@ -21,6 +21,7 @@ export async function PATCH(
   if (typeof body.priority === "number") data.priority = body.priority;
   if (typeof body.blocked === "boolean") data.blocked = body.blocked;
   if (typeof body.deleted === "boolean") data.deleted = body.deleted;
+  if (typeof body.notes === "string") data.notes = body.notes;
 
   const todo = await prisma.todo.updateMany({
     where: { id, userId: session.user.id },

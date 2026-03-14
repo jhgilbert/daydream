@@ -32,6 +32,7 @@ model Todo {
   priority  Int       @default(1)
   sortOrder Int       @default(0)
   deadline    DateTime?
+  notes       String?
   completedAt DateTime?
   userId      String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
