@@ -935,7 +935,7 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       name: "todo",
       description: "Add an item to the todo list",
       argPlaceholder: "What needs to be done?",
-      execute: (args) => addTodo(args),
+      execute: (args) => { addTodo(args); },
       interactivePrompts: [
         { key: "text", question: "What do you want to do?", required: true },
         {
@@ -953,7 +953,7 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       name: "queen",
       description: "Add a high-priority queen task",
       argPlaceholder: "What needs to be done?",
-      execute: (args) => addTodo(args, undefined, true),
+      execute: (args) => { addTodo(args, undefined, true); },
       interactivePrompts: [
         { key: "text", question: "What do you want to do?", required: true },
         {
@@ -983,28 +983,28 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       name: "p0",
       description: "Mark tasks as highest priority",
       argPlaceholder: "Start typing to search...",
-      execute: (args) => setPriority(args, 0),
+      execute: (args) => { setPriority(args, 0); },
       getArgSuggestions: getP0Suggestions,
     },
     {
       name: "p1",
       description: "Revert tasks to normal priority",
       argPlaceholder: "Start typing to search...",
-      execute: (args) => setPriority(args, 1),
+      execute: (args) => { setPriority(args, 1); },
       getArgSuggestions: getP1Suggestions,
     },
     {
       name: "blocked",
       description: "Mark tasks as blocked",
       argPlaceholder: "Start typing to search...",
-      execute: (args) => setBlocked(args, true),
+      execute: (args) => { setBlocked(args, true); },
       getArgSuggestions: getBlockedSuggestions,
     },
     {
       name: "unblocked",
       description: "Mark tasks as unblocked",
       argPlaceholder: "Start typing to search...",
-      execute: (args) => setBlocked(args, false),
+      execute: (args) => { setBlocked(args, false); },
       getArgSuggestions: getUnblockedSuggestions,
     },
     {
@@ -1057,7 +1057,7 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       name: "project",
       description: "Add a project",
       argPlaceholder: "Project name",
-      execute: (args) => addProject(args),
+      execute: (args) => { addProject(args); },
     },
     {
       name: "eod",
