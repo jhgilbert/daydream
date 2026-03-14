@@ -240,6 +240,21 @@ export function TodoList() {
               >
                 <div className={styles.row}>
                   <div className={styles.label}>
+                    {todo.jiraUrl && (
+                      <a
+                        href={todo.jiraUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.jiraLink}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <img
+                          src="/jira.svg"
+                          alt="Jira ticket"
+                          className={styles.jiraIcon}
+                        />
+                      </a>
+                    )}
                     <input
                       type="checkbox"
                       checked={todo.done}

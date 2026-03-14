@@ -22,6 +22,8 @@ export async function PATCH(
   if (typeof body.blocked === "boolean") data.blocked = body.blocked;
   if (typeof body.deleted === "boolean") data.deleted = body.deleted;
   if (typeof body.notes === "string") data.notes = body.notes;
+  if (typeof body.jiraUrl === "string") data.jiraUrl = body.jiraUrl;
+  if (body.jiraUrl === null) data.jiraUrl = null;
 
   const todo = await prisma.todo.updateMany({
     where: { id, userId: session.user.id },

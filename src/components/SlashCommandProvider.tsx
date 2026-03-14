@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -22,6 +23,7 @@ export interface TodoItem {
   deadline?: string;
   completedAt?: string;
   notes?: string;
+  jiraUrl?: string;
 }
 
 export interface Meeting {
@@ -51,7 +53,7 @@ export interface SlashCommand {
   name: string;
   description: string;
   argPlaceholder: string;
-  execute: (args: string) => void;
+  execute: (args: string) => void | InteractivePrompt[];
   /** When true, show numbered task list as context when this command is active */
   showTaskReference?: boolean;
   /** Optional filter for which tasks to show in the task reference panel */
@@ -307,6 +309,7 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [eodTime, setEodTime] = useState<Date | null>(null);
   const { notify } = useNotification();
+  const pendingJiraTaskRef = useRef<TodoItem | null>(null);
 
   // Fetch all data from the server
   const fetchAllData = useCallback(() => {
@@ -742,6 +745,36 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
     [todos, notify]
   );
 
+  const setJiraUrl = useCallback(
+    async (todoId: string, jiraUrl: string | null) => {
+      const prev = todos.find((t) => t.id === todoId);
+      // Optimistic update
+      setTodos((list) =>
+        list.map((t) =>
+          t.id === todoId ? { ...t, jiraUrl: jiraUrl ?? undefined } : t
+        )
+      );
+
+      try {
+        const res = await fetch(`/api/todos/${todoId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jiraUrl }),
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        // Revert on failure
+        setTodos((list) =>
+          list.map((t) =>
+            t.id === todoId ? { ...t, jiraUrl: prev?.jiraUrl } : t
+          )
+        );
+        notify("Failed to update Jira link");
+      }
+    },
+    [todos, notify]
+  );
+
   const deleteItem = useCallback(
     async (args: string) => {
       const query = args.trim().toLowerCase();
@@ -845,6 +878,21 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       const results: ArgSuggestion[] = [];
       for (const t of todos) {
         if (t.deleted || !t.blocked) continue;
+        if (!query || t.text.toLowerCase().includes(query)) {
+          results.push({ label: t.text, value: t.text });
+        }
+      }
+      return results;
+    },
+    [todos]
+  );
+
+  const getJiraSuggestions = useCallback(
+    (input: string): ArgSuggestion[] => {
+      const query = input.toLowerCase();
+      const results: ArgSuggestion[] = [];
+      for (const t of todos) {
+        if (t.deleted) continue;
         if (!query || t.text.toLowerCase().includes(query)) {
           results.push({ label: t.text, value: t.text });
         }
@@ -958,6 +1006,52 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
       argPlaceholder: "Start typing to search...",
       execute: (args) => setBlocked(args, false),
       getArgSuggestions: getUnblockedSuggestions,
+    },
+    {
+      name: "jira",
+      description: "Link a Jira ticket to a task",
+      argPlaceholder: "Start typing to search...",
+      execute: (args) => {
+        const query = args.trim().toLowerCase();
+        if (!query) {
+          notify("Usage: /jira <task description>");
+          return;
+        }
+        const activeTodos = todos.filter((t) => !t.deleted);
+        const target = activeTodos.find(
+          (t) => t.text.toLowerCase() === query
+        );
+        if (!target) {
+          notify("No matching task found");
+          return;
+        }
+        pendingJiraTaskRef.current = target;
+        return [
+          {
+            key: "url",
+            question: target.jiraUrl
+              ? `Jira URL (blank to remove): ${target.jiraUrl}`
+              : "Jira ticket URL:",
+            required: false,
+          },
+        ];
+      },
+      executeInteractive: (answers) => {
+        const task = pendingJiraTaskRef.current;
+        pendingJiraTaskRef.current = null;
+        if (!task) return;
+
+        const url = answers.url?.trim();
+        if (!url) {
+          // Blank: remove if exists, cancel if not
+          if (task.jiraUrl) {
+            setJiraUrl(task.id, null);
+          }
+          return;
+        }
+        setJiraUrl(task.id, url);
+      },
+      getArgSuggestions: getJiraSuggestions,
     },
     {
       name: "project",

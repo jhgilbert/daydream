@@ -79,6 +79,25 @@
   gap: var(--space-3);
 }
 
+.jiraLink {
+  display: flex;
+  align-items: center;
+  margin-left: calc(-1 * var(--space-3) - 18px);
+  margin-right: var(--space-1);
+  flex-shrink: 0;
+}
+
+.jiraIcon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+  transition: opacity var(--transition-fast);
+}
+
+.jiraIcon:hover {
+  opacity: 1;
+}
+
 .checkbox {
   appearance: none;
   width: 1.125rem;

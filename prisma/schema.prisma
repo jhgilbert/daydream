@@ -33,6 +33,7 @@ model Todo {
   sortOrder Int       @default(0)
   deadline    DateTime?
   notes       String?
+  jiraUrl     String?
   completedAt DateTime?
   userId      String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)

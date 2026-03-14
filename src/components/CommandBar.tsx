@@ -135,7 +135,19 @@ export function CommandBar() {
           setShowSuggestions(false);
           return;
         }
-        cmd.execute(args);
+        const result = cmd.execute(args);
+        // If execute returns prompts, enter interactive mode
+        if (Array.isArray(result)) {
+          setInteractive({
+            command: cmd,
+            prompts: result,
+            currentIndex: 0,
+            answers: {},
+          });
+          setValue("");
+          setShowSuggestions(false);
+          return;
+        }
         setValue("");
         setShowSuggestions(false);
         return;
