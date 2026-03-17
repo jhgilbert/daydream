@@ -652,7 +652,20 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
         (t) => t.text.toLowerCase() === query
       );
       if (!target) {
-        notify("No matching task found");
+        // No existing task matched — create a new one with this priority
+        try {
+          const res = await fetch("/api/todos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: args.trim(), priority }),
+          });
+          if (!res.ok) throw new Error();
+          const todo = await res.json();
+          setTodos((prev) => [...prev, todo]);
+          notify(`Created P${priority} task: ${args.trim()}`);
+        } catch {
+          notify("Failed to create task");
+        }
         return;
       }
       const targets = [target];
