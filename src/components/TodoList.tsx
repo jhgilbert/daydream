@@ -232,7 +232,7 @@ export function TodoList() {
                 )}
               <li
                 className={itemClasses}
-                draggable={!todo.done}
+                draggable={!todo.done && expandedId !== todo.id}
                 onDragStart={(e) => handleDragStart(e, todo)}
                 onDragOver={(e) => handleDragOver(e, todo)}
                 onDrop={(e) => handleDrop(e, todo)}
