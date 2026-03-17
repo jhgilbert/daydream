@@ -69,7 +69,7 @@ export interface SlashCommand {
 interface SlashCommandContextValue {
   todos: TodoItem[];
   toggleTodo: (id: string) => void;
-  updateTodoNotes: (id: string, notes: string) => Promise<boolean>;
+  updateTodoNotes: (id: string, notes: string, text?: string) => Promise<boolean>;
   reorderTodos: (orderedIds: string[]) => void;
   meetings: Meeting[];
   removeMeeting: (id: string) => void;
@@ -458,25 +458,27 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
   );
 
   const updateTodoNotes = useCallback(
-    async (id: string, notes: string): Promise<boolean> => {
+    async (id: string, notes: string, text?: string): Promise<boolean> => {
       // Optimistic update
       const prev = todos.find((t) => t.id === id);
       setTodos((list) =>
-        list.map((t) => (t.id === id ? { ...t, notes } : t))
+        list.map((t) => (t.id === id ? { ...t, notes, ...(text !== undefined ? { text } : {}) } : t))
       );
 
       try {
+        const body: Record<string, string> = { notes };
+        if (text !== undefined) body.text = text;
         const res = await fetch(`/api/todos/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notes }),
+          body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error();
         return true;
       } catch {
         // Revert on failure
         setTodos((list) =>
-          list.map((t) => (t.id === id ? { ...t, notes: prev?.notes } : t))
+          list.map((t) => (t.id === id ? { ...t, notes: prev?.notes, text: prev?.text ?? t.text } : t))
         );
         notify("Failed to save notes");
         return false;

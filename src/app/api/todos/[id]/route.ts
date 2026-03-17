@@ -21,6 +21,7 @@ export async function PATCH(
   if (typeof body.priority === "number") data.priority = body.priority;
   if (typeof body.blocked === "boolean") data.blocked = body.blocked;
   if (typeof body.deleted === "boolean") data.deleted = body.deleted;
+  if (typeof body.text === "string") data.text = body.text;
   if (typeof body.notes === "string") data.notes = body.notes;
   if (typeof body.jiraUrl === "string") data.jiraUrl = body.jiraUrl;
   if (body.jiraUrl === null) data.jiraUrl = null;

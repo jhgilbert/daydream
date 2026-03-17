@@ -71,8 +71,8 @@ export function TodoList() {
   );
 
   const handleNoteSave = useCallback(
-    async (id: string, html: string) => {
-      const success = await updateTodoNotes(id, html);
+    async (id: string, html: string, title: string) => {
+      const success = await updateTodoNotes(id, html, title);
       if (success) {
         setExpandedId(null);
         setHasUnsavedChanges(false);
@@ -299,7 +299,8 @@ export function TodoList() {
                 {expandedId === todo.id && (
                   <NoteEditor
                     initialValue={todo.notes ?? ""}
-                    onSave={(html) => handleNoteSave(todo.id, html)}
+                    initialTitle={todo.text}
+                    onSave={(html, title) => handleNoteSave(todo.id, html, title)}
                     onCancel={handleNoteCancel}
                     onDirtyChange={setHasUnsavedChanges}
                   />
