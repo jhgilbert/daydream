@@ -662,7 +662,6 @@ export function SlashCommandProvider({ children }: { children: ReactNode }) {
           if (!res.ok) throw new Error();
           const todo = await res.json();
           setTodos((prev) => [...prev, todo]);
-          notify(`Created P${priority} task: ${args.trim()}`);
         } catch {
           notify("Failed to create task");
         }
